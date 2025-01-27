@@ -1,0 +1,8 @@
+{
+  "name": "Bluetooth Speaker Control",
+  "content_in_root": false,
+  "domains": ["media_player"],
+  "country": ["US"],
+  "homeassistant": "2023.1.0",
+  "zip_release": true
+}
