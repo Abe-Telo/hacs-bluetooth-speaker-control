@@ -1,7 +1,7 @@
 {
   "domain": "bluetooth_speaker_control",
   "name": "Bluetooth Speaker Control",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "documentation": "https://github.com/Abe-Telo/hacs-bluetooth-speaker-control",
   "requirements": ["pybluez", "pulsectl"],
   "dependencies": [],
