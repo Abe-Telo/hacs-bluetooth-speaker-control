@@ -1,56 +1,54 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
+import json
 
 _LOGGER = logging.getLogger(__name__)
 
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
-        # Check if the async_get_scanner method is supported in this Home Assistant version
-        if not hasattr(hass.components.bluetooth, "async_get_scanner"):
-            _LOGGER.error("Bluetooth scanner is not supported in this Home Assistant version.")
-            return []
-
         # Get the Bluetooth scanner
         scanner = async_get_scanner(hass)
         if not scanner:
-            _LOGGER.error("❌ Bluetooth scanner not available.")
+            _LOGGER.error("❌ Bluetooth scanner is unavailable. Ensure the Bluetooth integration is set up correctly.")
             return []
 
-        # Attempt to use discovered_devices_and_advertisement_data
+        # Attempt to use discovered_devices_and_advertisement_data if available
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
 
         if not discovered_devices:
-            _LOGGER.warning("⚠️ Using fallback: discovered_devices only.")
-            discovered_devices = {
-                device: {"rssi": getattr(device, "rssi", -100)}  # Include at least RSSI as data
-                for device in scanner.discovered_devices
-            }
+            _LOGGER.warning("⚠️ Using fallback to scanner.discovered_devices.")
+            discovered_devices = {device: None for device in scanner.discovered_devices}
+
+        if not discovered_devices:
+            _LOGGER.warning(
+                "⚠️ No devices discovered. Ensure devices are in discoverable mode and within range of the Bluetooth adapter."
+            )
+            return []
 
         device_list = []
 
         _LOGGER.info(f"🔍 Found {len(discovered_devices)} Bluetooth devices.")
 
         for device, adv_data in discovered_devices.items():
-            # Process AdvertisementData attributes
-            adv_attributes = extract_adv_data(adv_data)
+            try:
+                # Process the device and advertisement data
+                device_data = {
+                    **extract_ble_device(device),
+                    **extract_adv_data(adv_data),
+                }
+                device_list.append(device_data)
 
-            # Process BLEDevice attributes
-            device_attributes = extract_ble_device(device)
+                # Log the discovered device for debugging
+                _LOGGER.debug("📡 Device discovered: %s", json.dumps(device_data, indent=4))
 
-            # Combine both attributes
-            device_data = {**device_attributes, **adv_attributes}
-
-            # Log raw device data safely
-            _LOGGER.debug("📡 RAW DEVICE DATA: %s", device_data)
-
-            # Append to device list
-            device_list.append(device_data)
+            except Exception as e:
+                _LOGGER.error(f"⚠️ Error processing device {device}: {e}")
 
         return device_list
 
     except Exception as e:
-        _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
+        _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
         return []
 
 
@@ -66,6 +64,7 @@ def extract_adv_data(adv_data):
             "rssi": -100,  # Dummy RSSI value
             "tx_power": "Unknown",
         }
+
     return {
         "local_name": getattr(adv_data, "local_name", "Unknown"),
         "manufacturer": getattr(adv_data, "manufacturer", "Unknown"),
@@ -96,6 +95,7 @@ def _serialize_bytes(data):
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
+
 
 
 
