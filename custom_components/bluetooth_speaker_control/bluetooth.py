@@ -1,6 +1,5 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
-import json
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,10 +20,12 @@ async def discover_bluetooth_devices(hass):
         # Attempt to use discovered_devices_and_advertisement_data
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
 
-        # Use fallback if the above is unavailable
         if not discovered_devices:
             _LOGGER.warning("⚠️ Using fallback: discovered_devices only.")
-            discovered_devices = {device: None for device in scanner.discovered_devices}
+            discovered_devices = {
+                device: {"rssi": getattr(device, "rssi", -100)}  # Include at least RSSI as data
+                for device in scanner.discovered_devices
+            }
 
         device_list = []
 
@@ -40,11 +41,8 @@ async def discover_bluetooth_devices(hass):
             # Combine both attributes
             device_data = {**device_attributes, **adv_attributes}
 
-            # Log raw device data
-            try:
-                __LOGGER.info("📡 RAW DEVICE DATA: %s", device_data)
-            except Exception as e:
-                _LOGGER.warning(f"⚠️ Failed to log raw device data: {e}")
+            # Log raw device data safely
+            _LOGGER.debug("📡 RAW DEVICE DATA: %s", device_data)
 
             # Append to device list
             device_list.append(device_data)
@@ -98,7 +96,6 @@ def _serialize_bytes(data):
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
-
 
 
 
