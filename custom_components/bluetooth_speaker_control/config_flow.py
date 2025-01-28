@@ -21,6 +21,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step: list available devices."""
         if user_input is not None:
             selected_mac = user_input.get("device_mac")
+
             if not selected_mac or selected_mac == "none":
                 _LOGGER.error("❌ Invalid selection: No device selected.")
                 return self.async_show_form(
@@ -66,15 +67,13 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
         for device in self.discovered_devices:
-            try:
-                _LOGGER.info(f"🔵 Discovered Device:\n{json.dumps(device, indent=4)}")
-            except Exception as e:
-                _LOGGER.warning(f"⚠️ Failed to log device: {e}")
+            _LOGGER.info(f"🔵 Discovered Device: {json.dumps(device, indent=4)}")
 
         return self.async_show_form(
             step_id="user",
             data_schema=self._get_device_schema(),
         )
+
 
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""

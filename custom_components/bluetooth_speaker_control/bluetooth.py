@@ -7,16 +7,15 @@ _LOGGER = logging.getLogger(__name__)
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
-        # Get the scanner object
         scanner = async_get_scanner(hass)
         if not scanner:
-            _LOGGER.error("Bluetooth scanner not available.")
+            _LOGGER.error("❌ Bluetooth scanner not available.")
             return []
 
-        # Attempt to fetch advertisement data and discovered devices
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
+
         if not discovered_devices:
-            _LOGGER.warning("Using fallback: discovered_devices only.")
+            _LOGGER.warning("⚠️ Using fallback: discovered_devices only.")
             devices = scanner.discovered_devices
         else:
             devices = discovered_devices.values()
@@ -25,7 +24,7 @@ async def discover_bluetooth_devices(hass):
 
         for item in devices:
             # Separate device and advertisement data
-            if isinstance(item, tuple):  # If `discovered_devices_and_advertisement_data`
+            if isinstance(item, tuple):  # If using `discovered_devices_and_advertisement_data`
                 device, adv_data = item
             else:
                 device, adv_data = item, None  # Fallback if only device is available
@@ -49,7 +48,7 @@ async def discover_bluetooth_devices(hass):
                 "id": getattr(device, "id", "Unknown"),
             }
 
-            # Log raw data (JSON serializable format)
+            # **Ensure JSON-safe logging**
             try:
                 raw_data_log = {
                     "device": device_attributes,
@@ -79,15 +78,17 @@ async def discover_bluetooth_devices(hass):
         return []
 
 
+
 def _serialize_bytes(data):
     """Convert bytearray or bytes to JSON serializable format."""
     if isinstance(data, (bytes, bytearray)):
-        return list(data)
+        return list(data)  # Convert bytearray to a list of integers
     elif isinstance(data, dict):
         return {key: _serialize_bytes(value) for key, value in data.items()}
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
+
 
 
 
