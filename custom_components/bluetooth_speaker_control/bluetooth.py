@@ -22,8 +22,13 @@ async def discover_bluetooth_devices(hass):
         for device in devices:
             # 🚀 LOG RAW DEVICE DATA (What is being received)
             try:
-                raw_device_data = json.dumps(device.__dict__, indent=4, default=str)
-                _LOGGER.info(f"🔍 RAW DEVICE DATA:\n{raw_device_data}")
+                raw_data = {
+                    "name": device.name,
+                    "mac": device.address,
+                    "rssi": getattr(device, "rssi", "Unknown"),
+                    "uuids": getattr(device, "service_uuids", []),
+                }
+                _LOGGER.info(f"🔵 Bluetooth RAW DEVICE DATA:\n{json.dumps(raw_data, indent=4)}")
             except Exception as log_error:
                 _LOGGER.warning(f"⚠️ Failed to log raw device data: {log_error}")
 
@@ -72,7 +77,7 @@ async def discover_bluetooth_devices(hass):
 
             # 🚀 LOG FINAL PROCESSED DEVICE DATA
             try:
-                _LOGGER.info(f"✅ PROCESSED DEVICE DATA:\n{json.dumps(formatted_data, indent=4)}")
+                _LOGGER.info(f"✅ Bluetooth PROCESSED DEVICE DATA:\n{json.dumps(formatted_data, indent=4)}")
             except Exception as log_error:
                 _LOGGER.warning(f"⚠️ Failed to log processed device data: {log_error}")
 
@@ -83,6 +88,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"🔥 Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
+
 
 
 
