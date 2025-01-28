@@ -4,7 +4,6 @@ import json  # For structured logging
 
 _LOGGER = logging.getLogger(__name__) 
 
-
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
@@ -31,10 +30,20 @@ async def discover_bluetooth_devices(hass):
             icon = "🔵"  # Default Bluetooth icon
             manufacturer = getattr(device, "manufacturer", "Unknown")
 
-            # Use `BLEDevice.rssi`, but log a warning
-            rssi = getattr(device, "rssi", "Unknown")
-            if rssi == "Unknown":
-                _LOGGER.warning("⚠️ **BLEDevice.rssi missing!** Check if AdvertisementData is available.")
+            # 🔥 Check if `AdvertisementData` is available
+            adv_data = getattr(device, "advertisement_data", None)
+            use_adv_rssi = False  # Default to BLEDevice.rssi
+            
+            if adv_data:
+                use_adv_rssi = hasattr(adv_data, "rssi")  # Check if `rssi` is present in AdvertisementData
+
+            # Choose the correct RSSI source
+            if use_adv_rssi:
+                rssi = adv_data.rssi  # ✅ Use AdvertisementData.rssi if available
+                _LOGGER.info("📶 **Using AdvertisementData.rssi**")
+            else:
+                rssi = getattr(device, "rssi", "Unknown")  # ❌ Fall back to BLEDevice.rssi
+                _LOGGER.warning("⚠️ **Using BLEDevice.rssi (Deprecated). AdvertisementData.rssi NOT found.**")
 
             # Get UUIDs
             uuids = getattr(device, "service_uuids", [])
@@ -85,6 +94,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
         return []
+
 
 
 
