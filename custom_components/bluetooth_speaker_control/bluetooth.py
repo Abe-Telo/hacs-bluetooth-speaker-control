@@ -13,13 +13,13 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("❌ Bluetooth scanner not available.")
             return []
 
-        # Check for discovered devices and advertisement data
+        # Get discovered devices and advertisement data if supported
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
-        if discovered_devices:
-            devices = discovered_devices.values()
-        else:
+        if not discovered_devices:
             _LOGGER.warning("⚠️ Using fallback: discovered_devices only.")
             devices = [(device, None) for device in scanner.discovered_devices]
+        else:
+            devices = discovered_devices.values()
 
         device_list = []
 
@@ -27,63 +27,36 @@ async def discover_bluetooth_devices(hass):
 
         for device, adv_data in devices:
             try:
-                # Extract all available attributes from BLEDevice
-                device_attributes = {
+                # Dynamically log all attributes from BLEDevice
+                _LOGGER.info(f"📡 BLEDevice Attributes:\n{json.dumps(device.__dict__, indent=4, default=str)}")
+
+                # Log AdvertisementData if available
+                if adv_data:
+                    _LOGGER.info(f"📡 AdvertisementData Attributes:\n{json.dumps(adv_data.__dict__, indent=4, default=str)}")
+                else:
+                    _LOGGER.info("📡 AdvertisementData not available for this device.")
+
+                # Extract specific attributes as a fallback for display
+                device_data = {
                     "address": getattr(device, "address", "Unknown"),
                     "name": getattr(device, "name", "Unknown"),
-                    "details": getattr(device, "details", {}),
-                    "id": getattr(device, "id", "Unknown"),
-                    "rssi": getattr(device, "rssi", "Unknown"),  # Deprecated, but used for now
-                    "metadata": getattr(device, "metadata", {}),
+                    "rssi": getattr(device, "rssi", "Unknown"),  # Deprecated, fallback
+                    "local_name": getattr(adv_data, "local_name", "Unknown") if adv_data else "Unknown",
+                    "manufacturer": getattr(adv_data, "manufacturer", "Unknown") if adv_data else "Unknown",
+                    "service_uuids": getattr(adv_data, "service_uuids", []) if adv_data else [],
                 }
 
-                # Extract all available attributes from AdvertisementData
-                adv_attributes = {
-                    "local_name": getattr(adv_data, "local_name", "Unknown"),
-                    "manufacturer": getattr(adv_data, "manufacturer", "Unknown"),
-                    "service_uuids": getattr(adv_data, "service_uuids", []),
-                    "service_data": _serialize_bytes(getattr(adv_data, "service_data", {})),
-                    "manufacturer_data": _serialize_bytes(getattr(adv_data, "manufacturer_data", {})),
-                    "rssi": getattr(adv_data, "rssi", getattr(device, "rssi", "Unknown")),
-                    "tx_power": getattr(adv_data, "tx_power", "Unknown"),
-                }
+                # Add to the device list
+                device_list.append(device_data)
 
-                # Log raw device data in JSON-safe format
-                raw_data_log = {
-                    "BLEDevice": device_attributes,
-                    "AdvertisementData": adv_attributes,
-                }
-                _LOGGER.info(f"📡 RAW DEVICE DATA:\n{json.dumps(raw_data_log, indent=4, default=str)}")
-
-                # Append to device list
-                device_list.append({
-                    "name": device_attributes["name"],
-                    "mac": device_attributes["address"],
-                    "rssi": adv_attributes["rssi"],
-                    "manufacturer": adv_attributes["manufacturer"],
-                    "service_uuids": adv_attributes["service_uuids"],
-                    "service_data": adv_attributes["service_data"],
-                    "manufacturer_data": adv_attributes["manufacturer_data"],
-                    "tx_power": adv_attributes["tx_power"],
-                })
             except Exception as e:
-                _LOGGER.warning(f"⚠️ Failed to log raw device data: {e}")
+                _LOGGER.warning(f"⚠️ Error processing device attributes: {e}")
 
         return device_list
 
     except Exception as e:
         _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
         return []
-
-def _serialize_bytes(data):
-    """Convert bytearray or bytes to JSON serializable format."""
-    if isinstance(data, (bytes, bytearray)):
-        return list(data)  # Convert bytearray to a list of integers
-    elif isinstance(data, dict):
-        return {key: _serialize_bytes(value) for key, value in data.items()}
-    elif isinstance(data, list):
-        return [_serialize_bytes(item) for item in data]
-    return data
 
 
 
