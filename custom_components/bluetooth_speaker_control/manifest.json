@@ -4,7 +4,7 @@
   "version": "1.0.1001",
   "documentation": "https://github.com/Abe-Telo/hacs-bluetooth-speaker-control",
   "requirements": [],
-  "dependencies": ["bluetooth"],  // This ensures the Home Assistant Bluetooth integration is loaded
+  "dependencies": ["bluetooth"],
   "codeowners": ["@Abe-Telo"],
   "iot_class": "local_push",
   "config_flow": true
