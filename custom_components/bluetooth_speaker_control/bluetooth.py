@@ -3,13 +3,6 @@ import logging
 
 _LOGGER = logging.getLogger(__name__) 
 
-DEVICE_TYPE_ICONS = {
-    "Headphone": "mdi:headphones",
-    "Music Player": "mdi:music-note",
-    "Speaker": "mdi:speaker",
-    "Unknown": "mdi:bluetooth",
-}
-
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
@@ -18,20 +11,14 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("Bluetooth scanner not available.")
             return []
 
-        devices = scanner.discovered_devices_and_advertisement_data  # Corrected API usage
-
-        if not devices:
-            _LOGGER.warning("No Bluetooth devices found.")
-            return []
-
-        _LOGGER.debug(f"Discovered devices using Home Assistant Bluetooth API: {devices}")
+        devices = scanner.discovered_devices
 
         device_list = []
-        for device, adv_data in devices.items():  # Extract BLEDevice & AdvertisementData
+        for device in devices:
             device_type = "Unknown"
             icon = "mdi:bluetooth"
 
-            # Determine device type based on name (simple logic, improve as needed)
+            # Mock logic for device type and icon
             if device.name and "headphone" in device.name.lower():
                 device_type = "Headphone"
                 icon = "mdi:headphones"
@@ -39,17 +26,9 @@ async def discover_bluetooth_devices(hass):
                 device_type = "Music Player"
                 icon = "mdi:speaker"
 
-            # Fetch manufacturer safely from AdvertisementData
-            manufacturer = (
-                next(iter(adv_data.manufacturer_data.values()), "Unknown")
-                if adv_data.manufacturer_data else "Unknown"
-            )
-
-            # Extract RSSI correctly from AdvertisementData
-            rssi = adv_data.rssi if adv_data.rssi is not None else "Unknown"
-
-            # Extract UUIDs from AdvertisementData
-            uuids = adv_data.service_uuids or []
+            rssi = device.rssi if hasattr(device, "rssi") else "Unknown"
+            manufacturer = getattr(device, "manufacturer", "Unknown")
+            uuids = getattr(device, "service_uuids", [])
 
             device_list.append({
                 "name": device.name or "Unknown",
@@ -58,7 +37,7 @@ async def discover_bluetooth_devices(hass):
                 "icon": icon,
                 "rssi": rssi,
                 "manufacturer": manufacturer,
-                "uuids": uuids
+                "uuids": uuids,
             })
 
         return device_list
