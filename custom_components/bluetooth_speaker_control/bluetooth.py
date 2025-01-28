@@ -13,7 +13,7 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("❌ Bluetooth scanner not available.")
             return []
 
-        # Check for `discovered_devices_and_advertisement_data` support
+        # Try to use `discovered_devices_and_advertisement_data`
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
 
         if not discovered_devices:
@@ -95,6 +95,7 @@ def _serialize_bytes(data):
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
+
 
 
 
