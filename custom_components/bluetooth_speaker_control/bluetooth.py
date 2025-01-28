@@ -4,6 +4,16 @@ import json
 
 _LOGGER = logging.getLogger(__name__)
 
+def _serialize_bytes(data):
+    """Convert bytearray or bytes to a JSON serializable format."""
+    if isinstance(data, (bytes, bytearray)):
+        return list(data)  # Convert bytearray to a list of integers
+    elif isinstance(data, dict):
+        return {key: _serialize_bytes(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_serialize_bytes(item) for item in data]
+    return data
+
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
@@ -23,13 +33,11 @@ async def discover_bluetooth_devices(hass):
         device_list = []
 
         for item in devices:
-            # Separate device and advertisement data
             if isinstance(item, tuple):  # If using `discovered_devices_and_advertisement_data`
                 device, adv_data = item
             else:
                 device, adv_data = item, None  # Fallback if only device is available
 
-            # Advertisement attributes
             adv_attributes = {
                 "local_name": getattr(adv_data, "local_name", "Unknown"),
                 "manufacturer": getattr(adv_data, "manufacturer", "Unknown"),
@@ -40,7 +48,6 @@ async def discover_bluetooth_devices(hass):
                 "tx_power": getattr(adv_data, "tx_power", "Unknown"),
             }
 
-            # BLEDevice attributes
             device_attributes = {
                 "address": getattr(device, "address", "Unknown"),
                 "name": getattr(device, "name", adv_attributes["local_name"] or "Unknown"),
@@ -48,7 +55,6 @@ async def discover_bluetooth_devices(hass):
                 "id": getattr(device, "id", "Unknown"),
             }
 
-            # **Ensure JSON-safe logging**
             try:
                 raw_data_log = {
                     "device": device_attributes,
@@ -58,11 +64,10 @@ async def discover_bluetooth_devices(hass):
             except Exception as e:
                 _LOGGER.warning(f"⚠️ Failed to log raw data: {e}")
 
-            # Append processed data
             device_list.append({
                 "name": device_attributes["name"],
                 "mac": device_attributes["address"],
-                "type": "Unknown",  # Placeholder for detection logic
+                "type": "Unknown",
                 "rssi": adv_attributes["rssi"],
                 "manufacturer": adv_attributes["manufacturer"],
                 "service_uuids": adv_attributes["service_uuids"],
@@ -79,15 +84,10 @@ async def discover_bluetooth_devices(hass):
 
 
 
-def _serialize_bytes(data):
-    """Convert bytearray or bytes to JSON serializable format."""
-    if isinstance(data, (bytes, bytearray)):
-        return list(data)  # Convert bytearray to a list of integers
-    elif isinstance(data, dict):
-        return {key: _serialize_bytes(value) for key, value in data.items()}
-    elif isinstance(data, list):
-        return [_serialize_bytes(item) for item in data]
-    return data
+
+
+
+
 
 
 
