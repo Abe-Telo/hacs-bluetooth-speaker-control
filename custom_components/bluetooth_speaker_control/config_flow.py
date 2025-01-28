@@ -3,7 +3,6 @@ from homeassistant.core import callback
 from .const import DOMAIN
 from .bluetooth import discover_bluetooth_devices
 import logging
-import asyncio
 import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,10 +16,9 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         self.discovered_devices = []
         self.selected_device = None
-        self.refresh_task = None
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step: list available devices with background refresh."""
+        """Handle the initial step: list available devices with dynamic discovery."""
         if user_input is not None:
             # Handle device selection
             selected_mac = user_input.get("device_mac")
@@ -29,22 +27,27 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 None,
             )
             if self.selected_device:
-                # Cancel the refresh task when proceeding
-                if self.refresh_task:
-                    self.refresh_task.cancel()
                 return await self.async_step_set_name()
 
-            # Invalid selection
-            _LOGGER.error("Invalid device selection.")
+            # Log error if the device is not found
+            _LOGGER.error(f"Selected MAC address {selected_mac} not found in discovered devices.")
             return self.async_show_form(
                 step_id="user",
                 data_schema=self._get_device_schema(),
                 errors={"base": "invalid_selection"},
             )
 
-        # Start the background refresh task
-        if self.refresh_task is None:
-            self.refresh_task = asyncio.create_task(self._refresh_devices())
+        # Attempt to discover devices
+        self.discovered_devices = await self._safe_discover_devices()
+
+        if not self.discovered_devices:
+            _LOGGER.warning("No Bluetooth devices discovered.")
+            # No devices found: Display a static message
+            return self.async_show_form(
+                step_id="user",
+                data_schema=self._get_device_schema(no_devices=True),
+                errors={"base": "no_devices_found"},
+            )
 
         # Show the list of discovered devices
         return self.async_show_form(
@@ -67,9 +70,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Display the form to set the device name
         data_schema = vol.Schema(
             {
-                vol.Required(
-                    "device_name", default=self.selected_device.get("name", "Unknown Device")
-                ): str,
+                vol.Required("device_name", default=self.selected_device.get("name", "Unknown Device")): str,
             }
         )
 
@@ -78,38 +79,30 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=data_schema,
         )
 
-    async def _refresh_devices(self):
-        """Background task to refresh the list of Bluetooth devices every 10 seconds."""
-        while True:
-            try:
-                _LOGGER.debug("Refreshing Bluetooth device list in the background.")
-                self.discovered_devices = await discover_bluetooth_devices(self.hass)
-                await asyncio.sleep(10)  # Wait for 15 seconds before the next refresh
-            except asyncio.CancelledError:
-                # Stop refreshing if the task is cancelled
-                _LOGGER.debug("Background refresh task cancelled.")
-                break
-            except Exception as e:
-                _LOGGER.error(f"Error during background device refresh: {e}")
+    async def _safe_discover_devices(self):
+        """Safely discover Bluetooth devices, logging any issues."""
+        try:
+            devices = await discover_bluetooth_devices(self.hass)
+            _LOGGER.debug(f"Discovered devices: {devices}")
+            return devices
+        except Exception as e:
+            _LOGGER.error(f"Error during Bluetooth device discovery: {e}")
+            return []
 
     @callback
-    def _get_device_schema(self):
+    def _get_device_schema(self, no_devices=False):
         """Generate the schema for the list of devices."""
+        if no_devices:
+            # No devices found: Show a static message
+            return vol.Schema({vol.Optional("device_mac"): vol.In({"none": "No devices found"})})
+
+        # Devices found: Create a list of options
         device_options = {
             device["mac"]: f"{device['name']} ({device['mac']})" for device in self.discovered_devices
         }
-        if not device_options:
-            device_options["none"] = "No devices found"
 
         return vol.Schema(
             {
                 vol.Required("device_mac"): vol.In(device_options),
             }
         )
-
-    async def async_shutdown(self):
-        """Stop the background refresh task when the flow ends."""
-        if self.refresh_task:
-            self.refresh_task.cancel()
-            await self.refresh_task
-
