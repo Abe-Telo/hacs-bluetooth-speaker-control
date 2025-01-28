@@ -1,15 +1,12 @@
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.components.bluetooth import async_get_scanner
 from .const import DOMAIN, DEFAULT_NAME
-import bluetooth  # Using PyBluez for Bluetooth discovery
 
 class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for Bluetooth Speaker Control."""
 
     VERSION = 1
-
-    def __init__(self):
-        self.devices = []
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -20,11 +17,10 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data=user_input,
             )
 
-        # Discover devices and store them
-        self.devices = await self.hass.async_add_executor_job(self.discover_bluetooth_devices)
+        # Discover devices using Home Assistant's Bluetooth API
+        devices = await self.discover_bluetooth_devices()
 
-        if not self.devices:
-            # If no devices are found, show an error
+        if not devices:
             return self.async_show_form(
                 step_id="user",
                 errors={"base": "no_devices_found"}
@@ -33,25 +29,22 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Display the configuration form with discovered devices
         return self.async_show_form(
             step_id="user",
-            data_schema=self._get_schema()
+            data_schema=self._get_schema(devices)
         )
 
-    def discover_bluetooth_devices(self):
-        """Discover nearby Bluetooth devices."""
-        try:
-            devices = bluetooth.discover_devices(lookup_names=True)
-            return [{"name": name, "mac": addr} for addr, name in devices]
-        except Exception as e:
-            self.hass.logger.error(f"Bluetooth discovery failed: {e}")
-            return []
+    async def discover_bluetooth_devices(self):
+        """Discover nearby Bluetooth devices using Home Assistant's API."""
+        scanner = async_get_scanner(self.hass)
+        devices = scanner.discovered_devices
+        return [{"name": device.name, "mac": device.address} for device in devices]
 
     @callback
-    def _get_schema(self):
+    def _get_schema(self, devices):
         """Generate the schema with discovered devices."""
         from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
 
         options = {
-            f"{device['name']} ({device['mac']})": device['mac'] for device in self.devices
+            f"{device['name']} ({device['mac']})": device['mac'] for device in devices
         }
 
         return {
