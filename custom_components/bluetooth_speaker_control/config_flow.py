@@ -62,7 +62,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
         if user_input is not None:
-            # Create the configuration entry with all details
             return self.async_create_entry(
                 title=user_input["nickname"],
                 data={
@@ -76,21 +75,28 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        # Format device details to display them nicely
+        # Extract all relevant device information
+        device_name = self.selected_device["name"]
+        device_type = self.selected_device["type"]
+        device_mac = self.selected_device["mac"]
+        device_rssi = self.selected_device["rssi"]
+        device_uuids = self.selected_device["uuids"] if self.selected_device["uuids"] else ["None"]
+        device_icon = self.selected_device["icon"]
+
+        # Format device details for display
         device_details = (
             f"**Device Information**\n"
-            f"- **Name**: {self.selected_device['name']}\n"
-            f"- **Type**: {self.selected_device['type']}\n"
-            f"- **MAC Address**: {self.selected_device['mac']}\n"
-            f"- **Manufacturer**: {self.selected_device['manufacturer']}\n"
-            f"- **RSSI**: {self.selected_device['rssi']} dBm\n"
-            f"- **Service UUIDs**: {', '.join(self.selected_device['uuids']) if self.selected_device['uuids'] else 'None'}\n"
+            f"{device_icon} **Type**: {device_type}\n"
+            f"🔹 **Name**: {device_name}\n"
+            f"🔹 **MAC Address**: `{device_mac}`\n"
+            f"🔹 **RSSI**: `{device_rssi} dBm`\n"
+            f"🔹 **Service UUIDs**: `{', '.join(device_uuids)}`\n"
         )
 
-        # Set the default nickname to "Device_Name (MAC)"
-        default_nickname = f"{self.selected_device['name']} ({self.selected_device['mac']} ({self.selected_device['manufacturer']} ({self.selected_device['rssi']} ({self.selected_device['uuids']} )"
+        # Set the default nickname to "Device Name (MAC)"
+        default_nickname = f"{device_name} ({device_mac})"
 
-        # Form schema for the nickname input
+        # Define input schema
         data_schema = vol.Schema(
             {
                 vol.Required("nickname", default=default_nickname): str,
@@ -100,10 +106,9 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="set_name",
             data_schema=data_schema,
-            description_placeholders={
-                "device_details": device_details,  # Display all device information
-            },
+            description_placeholders={"device_details": device_details},
         )
+
 
 
     @callback
@@ -113,7 +118,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return vol.Schema({vol.Optional("device_mac"): vol.In({"none": "No devices found"})})
 
         device_options = {
-            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']})"
+            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']}) {device['rssi']} "
             for device in self.discovered_devices
         }
 
