@@ -1,8 +1,7 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
 
-_LOGGER = logging.getLogger(__name__)
-
+_LOGGER = logging.getLogger(__name__) 
 
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
@@ -12,22 +11,19 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("Bluetooth scanner not available.")
             return []
 
-        # Get both devices and advertisement data (newer Home Assistant versions)
-        discovered_devices = scanner.discovered_devices_and_advertisement_data
-
+        devices = scanner.discovered_devices
         device_list = []
 
-        for device, adv_data in discovered_devices.values():
-            name = device.name or adv_data.local_name or "Unknown"
-            mac = device.address
-            manufacturer = adv_data.manufacturer or "Unknown"
-            rssi = adv_data.rssi if adv_data.rssi else "Unknown"
-            uuids = adv_data.service_uuids or []
-
-            # **Determine Device Type and Icon**
+        for device in devices:
+            # Default values
             device_type = "Unknown"
-            icon = "❓"  # Default unknown emoji/icon
-            name_lower = name.lower()
+            icon = "🔵"  # Default Bluetooth icon
+            manufacturer = "Unknown"
+            rssi = getattr(device, "rssi", "Unknown")
+            uuids = getattr(device, "service_uuids", [])
+
+            # Use name-based detection to assign type and icons
+            name_lower = device.name.lower() if device.name else ""
 
             if "headphone" in name_lower:
                 device_type = "Headphone"
@@ -50,16 +46,13 @@ async def discover_bluetooth_devices(hass):
             elif "mouse" in name_lower:
                 device_type = "Mouse"
                 icon = "🖱️"
-            elif "car" in name_lower or "auto" in name_lower:
-                device_type = "Car System"
-                icon = "🚗"
 
-            # **Format the discovered device**
+            # Construct device dictionary
             device_list.append({
-                "name": name,
-                "mac": mac,
+                "name": device.name or "Unknown",
+                "mac": device.address,
                 "type": device_type,
-                "icon": icon,  # Use the icon determined above
+                "icon": icon,  # Store the correct icon for later use
                 "rssi": rssi,
                 "manufacturer": manufacturer,
                 "uuids": uuids,
@@ -70,6 +63,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
+
 
 
 
