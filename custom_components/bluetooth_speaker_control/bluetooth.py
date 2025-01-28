@@ -1,9 +1,9 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
-import json  # To format logs properly
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__) 
 
+ 
 
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
@@ -13,77 +13,93 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("Bluetooth scanner not available.")
             return []
 
-        # Use the newer API that includes advertisement data
-        discovered_devices = scanner.discovered_devices_and_advertisement_data
-
-        if not discovered_devices:
-            _LOGGER.warning("No Bluetooth devices found.")
-            return []
-
+        devices = scanner.discovered_devices
         device_list = []
 
-        for device, adv_data in discovered_devices.values():
-            # Raw debugging log of the received data
-            _LOGGER.info(f"RAW DEVICE DATA: {json.dumps(device.__dict__, indent=4, default=str)}")
-            _LOGGER.info(f"RAW ADVERTISEMENT DATA: {json.dumps(adv_data.__dict__, indent=4, default=str)}")
-
-            # Extract available attributes
-            name = device.name or adv_data.local_name or "Unknown"
-            mac = device.address
-            manufacturer = adv_data.manufacturer or "Unknown"
-            rssi = adv_data.rssi if adv_data.rssi else "Unknown"
-            uuids = adv_data.service_uuids or []
-
+        for device in devices:
             device_type = "Unknown"
-            icon = "❓"  # Default unknown emoji/icon
-            name_lower = name.lower()
+            icon = "🔵"  # Default icon for unknown devices
 
-            # Use name-based detection for type and icon
+            # Use name-based detection to assign type and icons
+            name_lower = device.name.lower() if device.name else ""
+
+            # Temporery Display all icons to see if it discovers Correct BT
             if "headphone" in name_lower:
                 device_type = "Headphone"
-                icon = "🎧"
+                icon = "🎧"  # Headphone emoji
             elif "speaker" in name_lower or "music" in name_lower:
                 device_type = "Speaker"
-                icon = "🔊"
+                icon = "🔊"  # Speaker emoji
             elif "tv" in name_lower or "display" in name_lower:
                 device_type = "TV"
-                icon = "📺"
+                icon = "📺"  # Television emoji
             elif "phone" in name_lower or "mobile" in name_lower:
                 device_type = "Phone"
-                icon = "📱"
+                icon = "📱"  # Mobile phone emoji
             elif "watch" in name_lower or "wearable" in name_lower:
                 device_type = "Wearable"
-                icon = "⌚"
+                icon = "⌚"  # Watch emoji
             elif "keyboard" in name_lower:
                 device_type = "Keyboard"
-                icon = "⌨️"
+                icon = "⌨️"  # Keyboard emoji
             elif "mouse" in name_lower:
                 device_type = "Mouse"
-                icon = "🖱️"
-            elif "car" in name_lower or "auto" in name_lower:
-                device_type = "Car System"
-                icon = "🚗"
+                icon = "🖱️(Not Supported)"  # Mouse emoji
+            elif "car" in name_lower or "vehicle" in name_lower:
+                device_type = "Car Audio"
+                icon = "🚗"  # Car emoji
+            elif "printer" in name_lower:
+                device_type = "Printer"
+                icon = "🖨️(Not Supported)"  # Printer emoji
+            elif "tablet" in name_lower or "ipad" in name_lower:
+                device_type = "Tablet"
+                icon = "📟"  # Tablet emoji
+            elif "camera" in name_lower:
+                device_type = "Camera"
+                icon = "📷"  # Camera emoji
+            elif "game" in name_lower or "controller" in name_lower:
+                device_type = "Game Controller"
+                icon = "🎮"  # Game controller emoji
+            elif "smart" in name_lower:
+                device_type = "Smart Device"
+                icon = "🏠"  # Smart home emoji
+            elif "fitness" in name_lower or "tracker" in name_lower:
+                device_type = "Fitness Tracker"
+                icon = "🏃"  # Running emoji
+            elif "drone" in name_lower:
+                device_type = "Drone"
+                icon = "🛸(Not Supported)"  # Drone emoji
+            elif "hub" in name_lower or "gateway" in name_lower:
+                device_type = "Hub"
+                icon = "📡"  # Satellite emoji
+            elif "sensor" in name_lower or "detector" in name_lower:
+                device_type = "Sensor"
+                icon = "📍(Not Supported)"  # Location pin emoji
+            elif "light" in name_lower or "bulb" in name_lower:
+                device_type = "Smart Light"
+                icon = "💡(Not Supported)"  # Light bulb emoji
 
-            # Log final extracted data
-            formatted_data = {
-                "name": name,
-                "mac": mac,
+            # Extract additional device information
+            rssi = getattr(device, "rssi", "Unknown")
+            manufacturer = getattr(device, "manufacturer", "Unknown")
+            uuids = getattr(device, "service_uuids", [])
+
+            # Append device to the list
+            device_list.append({
+                "name": device.name or "Unknown",
+                "mac": device.address,
                 "type": device_type,
-                "icon": icon,
+                "icon": icon,  # Emoji icon for display
                 "rssi": rssi,
                 "manufacturer": manufacturer,
                 "uuids": uuids,
-            }
-            _LOGGER.info(f"PARSED DEVICE DATA: {json.dumps(formatted_data, indent=4)}")
-
-            device_list.append(formatted_data)
+            })
 
         return device_list
 
     except Exception as e:
-        _LOGGER.error(f"Error discovering Bluetooth devices: {e}")
+        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
-
 
 
 
