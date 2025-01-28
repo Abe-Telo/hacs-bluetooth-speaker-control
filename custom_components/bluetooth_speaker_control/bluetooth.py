@@ -4,6 +4,7 @@ import json
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
@@ -18,7 +19,10 @@ async def discover_bluetooth_devices(hass):
 
         if not discovered_devices:
             _LOGGER.warning("⚠️ Using fallback to scanner.discovered_devices.")
-            discovered_devices = {device: None for device in scanner.discovered_devices}
+            discovered_devices = {
+                device: {"rssi": getattr(device, "rssi", -100)}  # Add at least RSSI
+                for device in scanner.discovered_devices
+            }
 
         if not discovered_devices:
             _LOGGER.warning(
@@ -95,6 +99,7 @@ def _serialize_bytes(data):
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
+
 
 
 
