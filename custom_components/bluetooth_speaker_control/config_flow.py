@@ -18,12 +18,13 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.selected_device = None
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step: list available devices and add a refresh button."""
+        """Handle the initial step: list available devices with a refresh button."""
         if user_input is not None:
-            # Handle refresh action
-            if user_input.get("refresh"):
+            # Check if the refresh button is pressed
+            if "refresh_button" in user_input:
                 _LOGGER.debug("Refreshing the Bluetooth device list.")
                 self.discovered_devices = await discover_bluetooth_devices(self.hass)
+                # Reload the form with refreshed devices
                 return await self.async_step_user()
 
             # Handle device selection
@@ -43,8 +44,9 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={"base": "invalid_selection"},
             )
 
-        # Initial discovery of devices
-        self.discovered_devices = await discover_bluetooth_devices(self.hass)
+        # Discover devices on the first load or after a refresh
+        if not self.discovered_devices:
+            self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
         if not self.discovered_devices:
             _LOGGER.warning("No devices discovered.")
@@ -75,7 +77,9 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Display the form to set the device name
         data_schema = vol.Schema(
             {
-                vol.Required("device_name", default=self.selected_device["name"]): str,
+                vol.Required(
+                    "device_name", default=self.selected_device.get("name", "Unknown Device")
+                ): str,
             }
         )
 
@@ -88,8 +92,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _get_device_schema(self, no_devices=False):
         """Generate the schema for the list of devices."""
         if no_devices:
-            # No devices: Show only a refresh button
-            return vol.Schema({vol.Required("refresh", default=True): bool})
+            # No devices found: Only show a refresh button
+            return vol.Schema({vol.Optional("refresh_button", default="Refresh"): str})
 
         # Devices found: Show list of devices and refresh button
         device_options = {
@@ -98,6 +102,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return vol.Schema(
             {
                 vol.Required("device_mac"): vol.In(device_options),
-                vol.Optional("refresh", default=False): bool,
+                vol.Optional("refresh_button", default="Refresh"): str,
             }
         )
