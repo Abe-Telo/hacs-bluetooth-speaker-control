@@ -1,99 +1,106 @@
-from homeassistant.components.bluetooth import async_get_scanner
+from homeassistant import config_entries
+from homeassistant.core import callback
+from .const import DOMAIN
+from .bluetooth import discover_bluetooth_devices
 import logging
+import voluptuous as vol
 
-_LOGGER = logging.getLogger(__name__) 
+_LOGGER = logging.getLogger(__name__)
 
-DEVICE_TYPE_ICONS = {
-    "Headphone": "mdi:headphones",
-    "Music Player": "mdi:music-note",
-    "Speaker": "mdi:speaker",
-    "Unknown": "mdi:bluetooth",
-}
+class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle the configuration flow for Bluetooth Speaker Control."""
 
-async def discover_bluetooth_devices(hass):
-    """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
-    try:
-        scanner = async_get_scanner(hass)
-        if not scanner:
-            _LOGGER.error("Bluetooth scanner not available.")
-            return []
+    VERSION = 1
 
-        devices = scanner.discovered_devices_and_advertisement_data  # Corrected API usage
+    def __init__(self):
+        self.discovered_devices = []
+        self.selected_device = None
 
-        if not devices:
-            _LOGGER.warning("No Bluetooth devices found.")
-            return []
+    async def async_step_user(self, user_input=None):
+        """Handle the initial step: list available devices."""
+        if user_input is not None:
+            selected_mac = user_input.get("device_mac")
+            if not selected_mac or selected_mac == "none":
+                _LOGGER.error("Invalid selection: No device selected.")
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=self._get_device_schema(no_devices=not self.discovered_devices),
+                    errors={"base": "invalid_selection"},
+                )
 
-        _LOGGER.debug(f"Discovered devices using Home Assistant Bluetooth API: {devices}")
+            # Find the selected device
+            self.selected_device = next(
+                (device for device in self.discovered_devices if device["mac"] == selected_mac),
+                None,
+            )
+            if self.selected_device:
+                return await self.async_step_set_name()
 
-        device_list = []
-        for device, adv_data in devices.items():  # Extract BLEDevice & AdvertisementData
-            device_type = "Unknown"
-            icon = "mdi:bluetooth"
-
-            # Determine device type based on name (simple logic, improve as needed)
-            if device.name and "headphone" in device.name.lower():
-                device_type = "Headphone"
-                icon = "mdi:headphones"
-            elif device.name and "music" in device.name.lower():
-                device_type = "Music Player"
-                icon = "mdi:speaker"
-
-            # Fetch manufacturer safely from AdvertisementData
-            manufacturer = (
-                next(iter(adv_data.manufacturer_data.values()), "Unknown")
-                if adv_data.manufacturer_data else "Unknown"
+            _LOGGER.error(f"Selected MAC address {selected_mac} not found in discovered devices.")
+            return self.async_show_form(
+                step_id="user",
+                data_schema=self._get_device_schema(),
+                errors={"base": "device_not_found"},
             )
 
-            # Extract RSSI correctly from AdvertisementData
-            rssi = adv_data.rssi if adv_data.rssi is not None else "Unknown"
+        # Attempt to discover devices
+        self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
-            # Extract UUIDs from AdvertisementData
-            uuids = adv_data.service_uuids or []
+        if not self.discovered_devices:
+            _LOGGER.warning("No Bluetooth devices discovered.")
+            return self.async_show_form(
+                step_id="user",
+                data_schema=self._get_device_schema(no_devices=True),
+                errors={"base": "no_devices_found"},
+            )
 
-            device_list.append({
-                "name": device.name or "Unknown",
-                "mac": device.address,
-                "type": device_type,
-                "icon": icon,
-                "rssi": rssi,
-                "manufacturer": manufacturer,
-                "uuids": uuids
-            })
+        # Show the list of discovered devices
+        return self.async_show_form(
+            step_id="user",
+            data_schema=self._get_device_schema(),
+        )
 
-        return device_list
+    async def async_step_set_name(self, user_input=None):
+        """Handle the step where the user sets the nickname for the selected device."""
+        if user_input is not None:
+            # Save the selected device and create the configuration entry
+            return self.async_create_entry(
+                title=user_input["nickname"],
+                data={
+                    "nickname": user_input["nickname"],
+                    "name": self.selected_device["name"],
+                    "type": self.selected_device["type"],
+                    "mac_address": self.selected_device["mac"],
+                    "manufacturer": self.selected_device["manufacturer"],
+                    "rssi": self.selected_device["rssi"],
+                    "uuids": self.selected_device["uuids"],
+                },
+            )
 
-    except Exception as e:
-        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
-        return []
+        # Show form to set the nickname
+        data_schema = vol.Schema(
+            {
+                vol.Required("nickname", default=self.selected_device["name"]): str,
+            }
+        )
+        return self.async_show_form(
+            step_id="set_name",
+            data_schema=data_schema,
+        )
 
+    @callback
+    def _get_device_schema(self, no_devices=False):
+        """Generate the schema for the list of devices."""
+        if no_devices:
+            return vol.Schema({vol.Optional("device_mac"): vol.In({"none": "No devices found"})})
 
-def pair_device(mac_address):
-    """Simulate pairing with a Bluetooth device."""
-    try:
-        # Replace this with actual pairing logic
-        _LOGGER.debug(f"Simulated pairing with {mac_address}")
-        return True
-    except Exception as e:
-        _LOGGER.error(f"Error pairing with {mac_address}: {e}")
-        return False
+        device_options = {
+            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']})"
+            for device in self.discovered_devices
+        }
 
-def connect_device(mac_address):
-    """Simulate connecting to a Bluetooth device."""
-    try:
-        # Replace this with actual connection logic
-        _LOGGER.debug(f"Simulated connecting to {mac_address}")
-        return True
-    except Exception as e:
-        _LOGGER.error(f"Error connecting to {mac_address}: {e}")
-        return False
-
-def disconnect_device(mac_address):
-    """Simulate disconnecting from a Bluetooth device."""
-    try:
-        # Replace this with actual disconnection logic
-        _LOGGER.debug(f"Simulated disconnecting from {mac_address}")
-        return True
-    except Exception as e:
-        _LOGGER.error(f"Error disconnecting from {mac_address}: {e}")
-        return False
+        return vol.Schema(
+            {
+                vol.Required("device_mac"): vol.In(device_options),
+            }
+        )
