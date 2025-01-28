@@ -101,7 +101,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Devices found: Show list of devices with Type, Name, and MAC
         device_options = {
-            device["mac"]: f"{device['type']} | {device['name']} ({device['mac']})"
+            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']})"
             for device in self.discovered_devices
         }
 
@@ -110,3 +110,4 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("device_mac"): vol.In(device_options),
             }
         )
+

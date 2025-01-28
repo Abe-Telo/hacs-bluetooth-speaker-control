@@ -3,6 +3,13 @@ import logging
 
 _LOGGER = logging.getLogger(__name__) 
 
+DEVICE_TYPE_ICONS = {
+    "Headphone": "mdi:headphones",
+    "Music Player": "mdi:music-note",
+    "Speaker": "mdi:speaker",
+    "Unknown": "mdi:bluetooth",
+}
+
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
@@ -12,17 +19,30 @@ async def discover_bluetooth_devices(hass):
 
         device_list = []
         for device in devices:
-            # Mockup logic to determine device type
+            # Mockup logic to determine device type and assign icons
             device_type = "Unknown"
+            icon = DEVICE_TYPE_ICONS["Unknown"]
+
+            # Example type classification
             if "headphone" in device.name.lower():
                 device_type = "Headphone"
+                icon = DEVICE_TYPE_ICONS["Headphone"]
             elif "music" in device.name.lower():
                 device_type = "Music Player"
+                icon = DEVICE_TYPE_ICONS["Music Player"]
+            elif "speaker" in device.name.lower():
+                device_type = "Speaker"
+                icon = DEVICE_TYPE_ICONS["Speaker"]
 
+            # Add device properties to the list
             device_list.append({
                 "name": device.name,
                 "mac": device.address,
                 "type": device_type,  # Device type (Headphone, Music Player, etc.)
+                "icon": icon,        # Icon based on type
+                "rssi": device.rssi,  # Signal strength
+                "manufacturer": device.manufacturer or "Unknown",
+                "uuids": device.service_uuids or [],
             })
 
         return device_list
