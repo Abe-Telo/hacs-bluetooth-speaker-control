@@ -2,23 +2,39 @@ import bluetooth
 
 def discover_devices():
     """Discover nearby Bluetooth devices."""
-    devices = bluetooth.discover_devices(lookup_names=True)
-    return devices
+    try:
+        devices = bluetooth.discover_devices(lookup_names=True)
+        return [{"mac": addr, "name": name} for addr, name in devices]
+    except Exception as e:
+        print(f"Error discovering Bluetooth devices: {e}")
+        return []
 
 def pair_device(mac_address):
     """Pair with a Bluetooth device."""
-    # Simulate pairing logic (OS-specific implementation required)
     try:
-        # On Linux, use tools like `bluetoothctl` for actual pairing
-        # Example (requires subprocess integration):
-        # subprocess.run(["bluetoothctl", "pair", mac_address], check=True)
-        print(f"Pairing with device: {mac_address}")
+        # Simulated pairing logic (use subprocess/bluetoothctl for real systems)
+        print(f"Pairing with {mac_address}")
         return True
     except Exception as e:
-        print(f"Error pairing with device {mac_address}: {e}")
+        print(f"Error pairing with {mac_address}: {e}")
         return False
 
-def connect_to_device(device_mac):
+def connect_device(mac_address):
     """Connect to a Bluetooth device."""
-    # Add connection logic using pybluez or similar
-    pass
+    try:
+        # Simulated connection logic
+        print(f"Connecting to {mac_address}")
+        return True
+    except Exception as e:
+        print(f"Error connecting to {mac_address}: {e}")
+        return False
+
+def disconnect_device(mac_address):
+    """Disconnect from a Bluetooth device."""
+    try:
+        # Simulated disconnection logic
+        print(f"Disconnecting from {mac_address}")
+        return True
+    except Exception as e:
+        print(f"Error disconnecting from {mac_address}: {e}")
+        return False
