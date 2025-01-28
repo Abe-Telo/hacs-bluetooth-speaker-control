@@ -15,16 +15,15 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         self.discovered_devices = []
-        self.selected_device = None
+        self.refresh_option = "🔄 Refresh List"
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step: list available devices with a refresh button."""
+        """Handle the initial step: list available devices with a refresh option."""
         if user_input is not None:
-            # Check if the refresh button is pressed
-            if "refresh_button" in user_input:
+            # Handle refresh action
+            if user_input["device_mac"] == self.refresh_option:
                 _LOGGER.debug("Refreshing the Bluetooth device list.")
                 self.discovered_devices = await discover_bluetooth_devices(self.hass)
-                # Reload the form with refreshed devices
                 return await self.async_step_user()
 
             # Handle device selection
@@ -44,9 +43,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={"base": "invalid_selection"},
             )
 
-        # Discover devices on the first load or after a refresh
-        if not self.discovered_devices:
-            self.discovered_devices = await discover_bluetooth_devices(self.hass)
+        # Initial discovery of devices
+        self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
         if not self.discovered_devices:
             _LOGGER.warning("No devices discovered.")
@@ -91,17 +89,20 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def _get_device_schema(self, no_devices=False):
         """Generate the schema for the list of devices."""
-        if no_devices:
-            # No devices found: Only show a refresh button
-            return vol.Schema({vol.Optional("refresh_button", default="Refresh"): str})
-
-        # Devices found: Show list of devices and refresh button
         device_options = {
-            device["mac"]: f"{device['name']} ({device['mac']})" for device in self.discovered_devices
+            self.refresh_option: self.refresh_option  # Add refresh option at the top
         }
+        if not no_devices:
+            # Devices found: Add them to the options
+            device_options.update(
+                {
+                    device["mac"]: f"{device['name']} ({device['mac']})"
+                    for device in self.discovered_devices
+                }
+            )
+
         return vol.Schema(
             {
                 vol.Required("device_mac"): vol.In(device_options),
-                vol.Optional("refresh_button", default="Refresh"): str,
             }
         )
