@@ -4,7 +4,6 @@ import json
 
 _LOGGER = logging.getLogger(__name__)
 
-
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
@@ -38,7 +37,7 @@ async def discover_bluetooth_devices(hass):
                 "service_uuids": getattr(adv_data, "service_uuids", []),
                 "service_data": _serialize_bytes(getattr(adv_data, "service_data", {})),
                 "manufacturer_data": _serialize_bytes(getattr(adv_data, "manufacturer_data", {})),
-                "rssi": getattr(adv_data, "rssi", "Unknown"),
+                "rssi": getattr(adv_data, "rssi", getattr(device, "rssi", "Unknown")),
                 "tx_power": getattr(adv_data, "tx_power", "Unknown"),
             }
 
@@ -46,7 +45,6 @@ async def discover_bluetooth_devices(hass):
             device_attributes = {
                 "address": getattr(device, "address", "Unknown"),
                 "name": getattr(device, "name", adv_attributes["local_name"] or "Unknown"),
-                "rssi": getattr(device, "rssi", adv_attributes["rssi"]),
                 "details": getattr(device, "details", {}),
                 "id": getattr(device, "id", "Unknown"),
             }
@@ -66,7 +64,7 @@ async def discover_bluetooth_devices(hass):
                 "name": device_attributes["name"],
                 "mac": device_attributes["address"],
                 "type": "Unknown",  # Placeholder for detection logic
-                "rssi": device_attributes["rssi"],
+                "rssi": adv_attributes["rssi"],
                 "manufacturer": adv_attributes["manufacturer"],
                 "service_uuids": adv_attributes["service_uuids"],
                 "service_data": adv_attributes["service_data"],
@@ -90,6 +88,7 @@ def _serialize_bytes(data):
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
+
 
 
 

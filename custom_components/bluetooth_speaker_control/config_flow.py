@@ -47,7 +47,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={"base": "device_not_found"},
             )
 
-        _LOGGER.info("🔍 Discovering Bluetooth devices...")
+        # Inside async_step_user()
+        _LOGGER.info(f"🔍 Discovering Bluetooth devices...")
         self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
         if not self.discovered_devices:
@@ -60,7 +61,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
         for device in self.discovered_devices:
-            _LOGGER.info(f"🔵 Discovered Device: {json.dumps(device, indent=4)}")
+            _LOGGER.info(f"🔵 Discovered Device:\n{json.dumps(device, indent=4)}")
 
         return self.async_show_form(
             step_id="user",
