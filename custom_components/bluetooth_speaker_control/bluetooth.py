@@ -4,6 +4,7 @@ import json
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
@@ -25,44 +26,46 @@ async def discover_bluetooth_devices(hass):
 
         for item in devices:
             # Separate device and advertisement data
-            if isinstance(item, tuple):  # In case of `discovered_devices_and_advertisement_data`
+            if isinstance(item, tuple):  # If `discovered_devices_and_advertisement_data`
                 device, adv_data = item
             else:
                 device, adv_data = item, None  # Fallback if only device is available
 
-            # Collect advertisement data
+            # Advertisement attributes
             adv_attributes = {
                 "local_name": getattr(adv_data, "local_name", "Unknown"),
                 "manufacturer": getattr(adv_data, "manufacturer", "Unknown"),
                 "service_uuids": getattr(adv_data, "service_uuids", []),
-                "service_data": getattr(adv_data, "service_data", {}),
-                "manufacturer_data": getattr(adv_data, "manufacturer_data", {}),
+                "service_data": _serialize_bytes(getattr(adv_data, "service_data", {})),
+                "manufacturer_data": _serialize_bytes(getattr(adv_data, "manufacturer_data", {})),
                 "rssi": getattr(adv_data, "rssi", "Unknown"),
                 "tx_power": getattr(adv_data, "tx_power", "Unknown"),
             }
 
-            # Collect BLEDevice data
+            # BLEDevice attributes
             device_attributes = {
                 "address": getattr(device, "address", "Unknown"),
                 "name": getattr(device, "name", adv_attributes["local_name"] or "Unknown"),
                 "rssi": getattr(device, "rssi", adv_attributes["rssi"]),
                 "details": getattr(device, "details", {}),
-                "metadata": getattr(device, "metadata", {}),
                 "id": getattr(device, "id", "Unknown"),
             }
 
-            # Combine and log raw data
-            raw_data_log = {
-                "device": device_attributes,
-                "advertisement": adv_attributes,
-            }
-            _LOGGER.info(f"📡 RAW DEVICE DATA:\n{json.dumps(raw_data_log, indent=4)}")
+            # Log raw data
+            try:
+                raw_data_log = {
+                    "device": device_attributes,
+                    "advertisement": adv_attributes,
+                }
+                _LOGGER.info(f"📡 RAW DEVICE DATA:\n{json.dumps(raw_data_log, indent=4)}")
+            except TypeError as e:
+                _LOGGER.warning(f"⚠️ Failed to log raw data: {e}")
 
-            # Construct processed device entry for the final list
+            # Append processed data
             device_list.append({
                 "name": device_attributes["name"],
                 "mac": device_attributes["address"],
-                "type": "Unknown",  # You can enhance this with detection logic (e.g., name-based)
+                "type": "Unknown",  # Placeholder for detection logic
                 "rssi": device_attributes["rssi"],
                 "manufacturer": adv_attributes["manufacturer"],
                 "service_uuids": adv_attributes["service_uuids"],
@@ -76,6 +79,18 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
         return []
+
+
+def _serialize_bytes(data):
+    """Convert bytearray or bytes to JSON serializable format."""
+    if isinstance(data, (bytes, bytearray)):
+        return list(data)
+    elif isinstance(data, dict):
+        return {key: _serialize_bytes(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_serialize_bytes(item) for item in data]
+    return data
+
 
 
 
