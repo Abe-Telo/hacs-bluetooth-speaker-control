@@ -38,6 +38,7 @@ async def discover_bluetooth_devices(hass):
             else:
                 device, adv_data = item, None  # Fallback if only device is available
 
+            # Advertisement attributes
             adv_attributes = {
                 "local_name": getattr(adv_data, "local_name", "Unknown"),
                 "manufacturer": getattr(adv_data, "manufacturer", "Unknown"),
@@ -48,13 +49,15 @@ async def discover_bluetooth_devices(hass):
                 "tx_power": getattr(adv_data, "tx_power", "Unknown"),
             }
 
+            # BLEDevice attributes
             device_attributes = {
                 "address": getattr(device, "address", "Unknown"),
                 "name": getattr(device, "name", adv_attributes["local_name"] or "Unknown"),
-                "details": getattr(device, "details", {}),
+                "details": _serialize_bytes(getattr(device, "details", {})),  # ✅ Convert device details
                 "id": getattr(device, "id", "Unknown"),
             }
 
+            # **Ensure JSON-safe logging**
             try:
                 raw_data_log = {
                     "device": device_attributes,
@@ -64,6 +67,7 @@ async def discover_bluetooth_devices(hass):
             except Exception as e:
                 _LOGGER.warning(f"⚠️ Failed to log raw data: {e}")
 
+            # Append processed data
             device_list.append({
                 "name": device_attributes["name"],
                 "mac": device_attributes["address"],
@@ -81,6 +85,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
         return []
+
 
 
 
