@@ -8,6 +8,7 @@ import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for Bluetooth Speaker Control."""
 
@@ -19,6 +20,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step: list available devices."""
+        errors = {}
+
         if user_input is not None:
             selected_mac = user_input.get("device_mac")
 
@@ -36,7 +39,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
             if self.selected_device:
-                _LOGGER.info(f"🟢 Selected Bluetooth Device: {json.dumps(self.selected_device, indent=4)}")
+                _LOGGER.info(f"🟢 Selected Bluetooth Device: {self.selected_device}")
                 return await self.async_step_set_name()
 
             _LOGGER.error(f"❌ Selected MAC address {selected_mac} not found in discovered devices.")
@@ -48,7 +51,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         _LOGGER.info("🔍 Discovering Bluetooth devices...")
         try:
-            self.discovered_devices = await discover_bluetooth_devices(self.hass)
+            devices = await discover_bluetooth_devices(self.hass)
+            self.discovered_devices = devices
         except Exception as e:
             _LOGGER.error(f"🔥 Error during device discovery: {e}")
             return self.async_show_form(
@@ -67,13 +71,12 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
         for device in self.discovered_devices:
-            _LOGGER.info(f"🔵 Discovered Device: {json.dumps(device, indent=4)}")
+            _LOGGER.info(f"🔵 Discovered Device: {device}")
 
         return self.async_show_form(
             step_id="user",
             data_schema=self._get_device_schema(),
         )
-
 
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
