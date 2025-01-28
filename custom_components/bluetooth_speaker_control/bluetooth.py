@@ -12,8 +12,12 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("❌ Bluetooth scanner not available.")
             return []
 
-        # 🔍 Fetch discovered devices with advertisement data
-        discovered_devices = scanner.discovered_devices_and_advertisement_data
+        # 🔍 Try getting discovered devices with advertisement data, fallback if unavailable
+        try:
+            discovered_devices = scanner.discovered_devices_and_advertisement_data
+        except AttributeError:
+            _LOGGER.warning("⚠️ `discovered_devices_and_advertisement_data` is not available. Falling back to `discovered_devices`.")
+            discovered_devices = {device.address: (device, {}) for device in scanner.discovered_devices}
 
         if not discovered_devices:
             _LOGGER.warning("⚠️ No Bluetooth devices found.")
@@ -29,11 +33,11 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.debug(f"📡 RAW ADVERTISEMENT DATA:\n{raw_adv_data}")
 
             # Extracting attributes safely
-            name = device.name or adv_data.local_name or "Unknown"
+            name = device.name or adv_data.get("local_name", "Unknown")
             mac = device.address
-            manufacturer = adv_data.manufacturer or "Unknown"
-            rssi = adv_data.rssi if adv_data.rssi is not None else "Unknown"
-            uuids = adv_data.service_uuids or []
+            manufacturer = adv_data.get("manufacturer", "Unknown")
+            rssi = adv_data.get("rssi", "Unknown")
+            uuids = adv_data.get("service_uuids", [])
 
             # 🔹 Detect device type and assign an icon
             device_type, icon = detect_device_type(name)
@@ -121,6 +125,7 @@ def detect_device_type(name):
         icon = "💡(Not Supported)"
 
     return device_type, icon
+
 
 
 
