@@ -2,7 +2,7 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from .const import DOMAIN
 from .bluetooth import discover_bluetooth_devices
-from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
+from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, TextSelector, TextSelectorConfig
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,11 +18,12 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.selected_device = None
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step: list all devices with a refresh button."""
+        """Handle the initial step: list devices and provide a refresh option."""
         if user_input is not None:
-            # If 'refresh' is clicked, refresh device discovery
-            if user_input.get("refresh") == "refresh":
+            # If refresh is clicked, rediscover devices
+            if user_input.get("refresh"):
                 _LOGGER.debug("Refreshing Bluetooth device list.")
+                self.discovered_devices = await discover_bluetooth_devices(self.hass)
                 return await self.async_step_user()
 
             # User selected a device, proceed to naming step
@@ -34,34 +35,34 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if self.selected_device:
                 return await self.async_step_set_name()
 
-            # If no valid selection is found, show error
-            _LOGGER.error("Invalid selection. Device not found.")
+            # Invalid selection
+            _LOGGER.error("Invalid device selection.")
             return self.async_show_form(
                 step_id="user",
-                errors={"base": "invalid_selection"},
                 data_schema=self._get_schema(),
+                errors={"base": "invalid_selection"},
             )
 
-        # Initial device discovery
+        # Discover devices on the initial load
         self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
         if not self.discovered_devices:
-            _LOGGER.warning("No Bluetooth devices discovered.")
+            _LOGGER.warning("No devices discovered.")
             return self.async_show_form(
                 step_id="user",
-                errors={"base": "no_devices_found"},
                 data_schema=self._get_schema(),
+                errors={"base": "no_devices_found"},
             )
 
-        # Show the list of discovered devices
         return self.async_show_form(
             step_id="user",
             data_schema=self._get_schema(),
         )
 
     async def async_step_set_name(self, user_input=None):
-        """Step to ask the user for a name for the selected device."""
+        """Step to ask for a custom name for the selected device."""
         if user_input is not None:
+            # Create the configuration entry
             return self.async_create_entry(
                 title=user_input["device_name"],
                 data={
@@ -70,27 +71,32 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        # Show form for entering the name
+        # Display form to set the device name
         data_schema = {
             "device_name": TextSelector(TextSelectorConfig(type="text")),
-            "mac_address": TextSelector(
-                TextSelectorConfig(type="text", default=self.selected_device["mac"])
-            ),
         }
 
         return self.async_show_form(
             step_id="set_name",
             data_schema=data_schema,
+            description_placeholders={
+                "mac_address": self.selected_device["mac"],
+            },
         )
 
     @callback
     def _get_schema(self):
-        """Generate schema for the user step."""
-        from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
+        """Generate the schema for the user step."""
+        if not self.discovered_devices:
+            # No devices found: Only show refresh button
+            return {
+                "refresh": TextSelector(TextSelectorConfig(type="text", default="refresh")),
+            }
 
-        options = {device["mac"]: f"{device['name']} ({device['mac']})" for device in self.discovered_devices}
-
-        # Add a "Refresh" option to the schema
+        # Devices found: Show dropdown and refresh option
+        options = {
+            device["mac"]: f"{device['name']} ({device['mac']})" for device in self.discovered_devices
+        }
         return {
             "mac_address": SelectSelector(
                 SelectSelectorConfig(
@@ -98,7 +104,5 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     mode="dropdown",
                 )
             ),
-            "refresh": TextSelector(
-                TextSelectorConfig(type="text", default="refresh")
-            ),
+            "refresh": TextSelector(TextSelectorConfig(type="text", default="")),
         }
