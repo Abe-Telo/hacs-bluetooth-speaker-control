@@ -49,7 +49,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={"base": "device_not_found"},
             )
 
-        _LOGGER.info("🔍 Discovering Bluetooth devices...")
+        _LOGGER.info("🔍 Starting Bluetooth device discovery...")
         try:
             devices = await discover_bluetooth_devices(self.hass)
             self.discovered_devices = devices
@@ -61,14 +61,15 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={"base": "discovery_failed"},
             )
 
-        # Before processing devices
         if not self.discovered_devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices discovered.")
+            _LOGGER.warning(
+                "⚠️ No devices discovered. Ensure devices are powered on, discoverable, and within range of the Bluetooth adapter."
+            )
             return self.async_show_form(
                 step_id="user",
                 data_schema=self._get_device_schema(no_devices=True),
                 errors={"base": "no_devices_found"},
-            )    )
+            )
 
         _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
         for device in self.discovered_devices:
@@ -78,6 +79,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=self._get_device_schema(),
         )
+
 
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
@@ -133,7 +135,13 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _get_device_schema(self, no_devices=False):
         """Generate the schema for the list of devices."""
         if no_devices:
-            return vol.Schema({vol.Optional("device_mac"): vol.In({"none": "No devices found"})})
+            return vol.Schema(
+                {
+                    vol.Optional("device_mac"): vol.In(
+                        {"none": "No devices found. Make sure devices are discoverable and try again."}
+                    )
+                }
+            )
 
         device_options = {
             device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']}) {device['rssi']} dBm"
@@ -145,3 +153,4 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("device_mac"): vol.In(device_options),
             }
         )
+

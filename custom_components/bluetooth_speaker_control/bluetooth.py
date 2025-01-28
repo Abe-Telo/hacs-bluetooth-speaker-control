@@ -21,8 +21,11 @@ async def discover_bluetooth_devices(hass):
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
 
         if not discovered_devices:
-            _LOGGER.warning("⚠️ Using fallback: scanner.discovered_devices only.")
+            _LOGGER.warning(
+                "⚠️ Using fallback to scanner.discovered_devices. Ensure Home Assistant is up-to-date for full compatibility."
+            )
             discovered_devices = {device: None for device in scanner.discovered_devices}
+
 
         # Log discovered devices count
         _LOGGER.info(f"🔍 Discovered {len(discovered_devices)} Bluetooth devices.")
