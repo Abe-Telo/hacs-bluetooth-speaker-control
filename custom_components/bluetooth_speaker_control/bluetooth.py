@@ -4,7 +4,6 @@ import json
 
 _LOGGER = logging.getLogger(__name__)
 
-
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
@@ -99,6 +98,7 @@ def _serialize_bytes(data):
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
+
 
 
 
