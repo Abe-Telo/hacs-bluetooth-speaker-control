@@ -61,13 +61,14 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={"base": "discovery_failed"},
             )
 
+        # Before processing devices
         if not self.discovered_devices:
             _LOGGER.warning("⚠️ No Bluetooth devices discovered.")
             return self.async_show_form(
                 step_id="user",
                 data_schema=self._get_device_schema(no_devices=True),
                 errors={"base": "no_devices_found"},
-            )
+            )    )
 
         _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
         for device in self.discovered_devices:
