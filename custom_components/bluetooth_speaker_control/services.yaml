@@ -1,0 +1,13 @@
+# Service to connect to a Bluetooth speaker
+connect_speaker:
+  name: "Connect to Bluetooth Speaker"
+  description: "Connect to a Bluetooth speaker by its MAC address."
+  fields:
+    mac_address:
+      description: "The MAC address of the Bluetooth speaker."
+      example: "00:1A:7D:DA:71:13"
+
+# Service to disconnect from a Bluetooth speaker
+disconnect_speaker:
+  name: "Disconnect from Bluetooth Speaker"
+  description: "Disconnect from a connected Bluetooth speaker."
