@@ -61,6 +61,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
         if user_input is not None:
+            # Create the configuration entry with all details
             return self.async_create_entry(
                 title=user_input["nickname"],
                 data={
@@ -74,15 +75,35 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 },
             )
 
+        # Format device details to display them nicely
+        device_details = (
+            f"**Device Information**\n"
+            f"- **Name**: {self.selected_device['name']}\n"
+            f"- **Type**: {self.selected_device['type']}\n"
+            f"- **MAC Address**: {self.selected_device['mac']}\n"
+            f"- **Manufacturer**: {self.selected_device['manufacturer']}\n"
+            f"- **RSSI**: {self.selected_device['rssi']} dBm\n"
+            f"- **Service UUIDs**: {', '.join(self.selected_device['uuids']) if self.selected_device['uuids'] else 'None'}\n"
+        )
+
+        # Set the default nickname to "Device_Name (MAC)"
+        default_nickname = f"{self.selected_device['name']} ({self.selected_device['mac']})"
+
+        # Form schema for the nickname input
         data_schema = vol.Schema(
             {
-                vol.Required("nickname", default=self.selected_device["name"]): str,
+                vol.Required("nickname", default=default_nickname): str,
             }
         )
+
         return self.async_show_form(
             step_id="set_name",
             data_schema=data_schema,
+            description_placeholders={
+                "device_details": device_details,  # Display all device information
+            },
         )
+
 
     @callback
     def _get_device_schema(self, no_devices=False):
