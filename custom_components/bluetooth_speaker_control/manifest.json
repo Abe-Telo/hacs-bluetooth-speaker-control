@@ -1,7 +1,7 @@
 {
   "domain": "bluetooth_speaker_control",
   "name": "Bluetooth Speaker Control",
-  "version": "1.0.1.001",
+  "version": "1.0.1001",
   "documentation": "https://github.com/Abe-Telo/hacs-bluetooth-speaker-control",
   "requirements": [],
   "dependencies": ["bluetooth"],
