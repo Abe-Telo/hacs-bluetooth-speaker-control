@@ -19,7 +19,7 @@ async def discover_bluetooth_devices(hass):
 
         device_list = []
         for device in devices:
-            # Mockup logic to determine device type and assign icons
+            # Default to unknown type and icon
             device_type = "Unknown"
             icon = DEVICE_TYPE_ICONS["Unknown"]
 
@@ -34,15 +34,15 @@ async def discover_bluetooth_devices(hass):
                 device_type = "Speaker"
                 icon = DEVICE_TYPE_ICONS["Speaker"]
 
-            # Add device properties to the list
+            # Append device information
             device_list.append({
                 "name": device.name,
                 "mac": device.address,
-                "type": device_type,  # Device type (Headphone, Music Player, etc.)
-                "icon": icon,        # Icon based on type
-                "rssi": device.rssi,  # Signal strength
-                "manufacturer": device.manufacturer or "Unknown",
-                "uuids": device.service_uuids or [],
+                "type": device_type,                 # Device type
+                "icon": icon,                        # Icon based on type
+                "rssi": device.rssi or "Unknown",    # Signal strength
+                "manufacturer": device.manufacturer or "Unknown",  # Manufacturer
+                "uuids": device.service_uuids or [], # Service UUIDs
             })
 
         return device_list

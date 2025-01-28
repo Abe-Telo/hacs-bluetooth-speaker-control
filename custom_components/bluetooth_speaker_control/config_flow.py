@@ -7,7 +7,6 @@ import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
 
-
 class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for Bluetooth Speaker Control."""
 
@@ -37,9 +36,9 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={"base": "invalid_selection"},
             )
 
-        # Attempt to discover devices
-        #self.discovered_devices = await self._safe_discover_devices()
-        self.discovered_devices = await discover_bluetooth_devices(self.hass)
+        # Discover Bluetooth devices
+        self.discovered_devices = await self._safe_discover_devices()
+        #self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
         if not self.discovered_devices:
             _LOGGER.warning("No Bluetooth devices discovered.")
@@ -67,9 +66,11 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "name": self.selected_device["name"],
                     "type": self.selected_device["type"],
                     "mac_address": self.selected_device["mac"],
+                    "manufacturer": self.selected_device["manufacturer"],
+                    "rssi": self.selected_device["rssi"],
+                    "uuids": self.selected_device.get("uuids", []),  # Store for reference
                 },
             )
-
 
         # Show form to set the nickname
         data_schema = vol.Schema(
@@ -96,12 +97,11 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _get_device_schema(self, no_devices=False):
         """Generate the schema for the list of devices."""
         if no_devices:
-            # No devices found
             return vol.Schema({vol.Optional("device_mac"): vol.In({"none": "No devices found"})})
 
-        # Devices found: Show list of devices with Type, Name, and MAC
+        # Format device options with icon, type, name, manufacturer, MAC, and RSSI
         device_options = {
-            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']})"
+            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} - {device['manufacturer']} ({device['mac']}) | RSSI: {device['rssi']} dBm"
             for device in self.discovered_devices
         }
 
@@ -110,4 +110,3 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("device_mac"): vol.In(device_options),
             }
         )
-
