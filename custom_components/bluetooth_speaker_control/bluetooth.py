@@ -13,7 +13,7 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("❌ Bluetooth scanner not available.")
             return []
 
-        # Get discovered devices and advertisement data if supported
+        # Attempt to fetch advertisement data and discovered devices
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
         if not discovered_devices:
             _LOGGER.warning("⚠️ Using fallback: discovered_devices only.")
@@ -23,31 +23,40 @@ async def discover_bluetooth_devices(hass):
 
         device_list = []
 
-        _LOGGER.info(f"🔍 Found {len(devices)} Bluetooth devices.")  # Log number of devices
+        # Log the number of devices found
+        _LOGGER.info(f"🔍 Found {len(devices)} Bluetooth devices.")
 
         for device, adv_data in devices:
             try:
-                # Dynamically log all attributes from BLEDevice
-                _LOGGER.info(f"📡 BLEDevice Attributes:\n{json.dumps(device.__dict__, indent=4, default=str)}")
-
-                # Log AdvertisementData if available
-                if adv_data:
-                    _LOGGER.info(f"📡 AdvertisementData Attributes:\n{json.dumps(adv_data.__dict__, indent=4, default=str)}")
-                else:
-                    _LOGGER.info("📡 AdvertisementData not available for this device.")
-
-                # Extract specific attributes as a fallback for display
+                # Extract attributes safely without using `__dict__`
                 device_data = {
                     "address": getattr(device, "address", "Unknown"),
                     "name": getattr(device, "name", "Unknown"),
-                    "rssi": getattr(device, "rssi", "Unknown"),  # Deprecated, fallback
+                    "rssi": getattr(device, "rssi", "Unknown"),
+                    "details": str(getattr(device, "details", "Unknown")),
+                    "id": getattr(device, "id", "Unknown"),
+                }
+
+                # Extract advertisement data safely
+                adv_data_data = {
                     "local_name": getattr(adv_data, "local_name", "Unknown") if adv_data else "Unknown",
                     "manufacturer": getattr(adv_data, "manufacturer", "Unknown") if adv_data else "Unknown",
                     "service_uuids": getattr(adv_data, "service_uuids", []) if adv_data else [],
                 }
 
-                # Add to the device list
-                device_list.append(device_data)
+                # Log the device and advertisement data
+                _LOGGER.info(f"📡 Device Data:\n{json.dumps(device_data, indent=4)}")
+                _LOGGER.info(f"📡 Advertisement Data:\n{json.dumps(adv_data_data, indent=4)}")
+
+                # Append processed data to the device list
+                device_list.append({
+                    "name": device_data["name"],
+                    "mac": device_data["address"],
+                    "type": "Unknown",  # Placeholder for detection logic
+                    "rssi": device_data["rssi"],
+                    "manufacturer": adv_data_data["manufacturer"],
+                    "service_uuids": adv_data_data["service_uuids"],
+                })
 
             except Exception as e:
                 _LOGGER.warning(f"⚠️ Error processing device attributes: {e}")
@@ -57,6 +66,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
         return []
+
 
 
 
