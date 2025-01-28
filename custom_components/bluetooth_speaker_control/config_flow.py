@@ -2,6 +2,7 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from .const import DOMAIN, DEFAULT_NAME
 from .bluetooth import discover_bluetooth_devices
+from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, TextSelector, TextSelectorConfig
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,12 +40,18 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def _get_schema(self, devices):
         """Generate the schema with discovered devices."""
-        from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
+        if not devices:
+            return {
+                "mac_address": TextSelector(
+                    TextSelectorConfig(type="text")
+                ),
+                "pairing_name": TextSelector(
+                    TextSelectorConfig(type="text")
+                ),
+            }
 
-        options = {
-            f"{device['name']} ({device['mac']})": device['mac'] for device in devices
-        }
-
+        # Dynamically build options for discovered devices
+        options = {f"{device['name']} ({device['mac']})": device['mac'] for device in devices}
         return {
             "device_name": SelectSelector(
                 SelectSelectorConfig(
