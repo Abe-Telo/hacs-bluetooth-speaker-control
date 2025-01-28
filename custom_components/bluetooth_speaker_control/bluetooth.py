@@ -1,6 +1,6 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
-import json  # For structured logging
+import json
 
 _LOGGER = logging.getLogger(__name__) 
 
@@ -18,10 +18,16 @@ async def discover_bluetooth_devices(hass):
         _LOGGER.info(f"🔍 **Found {len(devices)} Bluetooth devices**")
 
         for device in devices:
-            # 🚀 LOG RAW DEVICE DATA
+            # 🚀 LOG RAW DEVICE DATA SAFELY
             try:
-                raw_device_data = json.dumps(device.__dict__, indent=4, default=str)
-                _LOGGER.info(f"📡 **RAW BLUETOOTH DEVICE DATA:**\n{raw_device_data}")
+                raw_device_data = {
+                    "name": getattr(device, "name", "Unknown"),
+                    "address": getattr(device, "address", "Unknown"),
+                    "rssi": getattr(device, "rssi", "Unknown"),
+                    "manufacturer": getattr(device, "manufacturer", "Unknown"),
+                    "uuids": getattr(device, "service_uuids", []),
+                }
+                _LOGGER.info(f"📡 **RAW BLUETOOTH DEVICE DATA:**\n{json.dumps(raw_device_data, indent=4)}")
             except Exception as e:
                 _LOGGER.warning(f"⚠️ Failed to log raw device data: {e}")
 
@@ -34,8 +40,8 @@ async def discover_bluetooth_devices(hass):
             adv_data = getattr(device, "advertisement_data", None)
             use_adv_rssi = False  # Default to BLEDevice.rssi
             
-            if adv_data:
-                use_adv_rssi = hasattr(adv_data, "rssi")  # Check if `rssi` is present in AdvertisementData
+            if adv_data and hasattr(adv_data, "rssi"):
+                use_adv_rssi = True
 
             # Choose the correct RSSI source
             if use_adv_rssi:
@@ -94,6 +100,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
         return []
+
 
 
 
