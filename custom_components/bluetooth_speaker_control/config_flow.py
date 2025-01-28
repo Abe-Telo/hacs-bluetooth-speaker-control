@@ -17,10 +17,19 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.selected_device = None
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step: list available devices."""
+        """Handle the initial step: list available devices with background discovery."""
         if user_input is not None:
-            # Handle device selection
             selected_mac = user_input.get("device_mac")
+
+            if not selected_mac or selected_mac == "none":
+                _LOGGER.error("Invalid selection: No device selected.")
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=self._get_device_schema(),
+                    errors={"base": "invalid_selection"},
+                )
+
+            # Find the selected device
             self.selected_device = next(
                 (device for device in self.discovered_devices if device["mac"] == selected_mac),
                 None,
@@ -28,37 +37,32 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if self.selected_device:
                 return await self.async_step_set_name()
 
-            # Invalid device selection
             _LOGGER.error(f"Selected MAC address {selected_mac} not found in discovered devices.")
             return self.async_show_form(
                 step_id="user",
                 data_schema=self._get_device_schema(),
-                errors={"base": "invalid_selection"},
+                errors={"base": "device_not_found"},
             )
 
-        # Discover Bluetooth devices
+        # Discover devices (refreshes every 15 seconds)
         self.discovered_devices = await self._safe_discover_devices()
-        #self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
         if not self.discovered_devices:
             _LOGGER.warning("No Bluetooth devices discovered.")
-            # No devices found: Display a static message
             return self.async_show_form(
                 step_id="user",
                 data_schema=self._get_device_schema(no_devices=True),
                 errors={"base": "no_devices_found"},
             )
 
-        # Show the list of discovered devices
         return self.async_show_form(
             step_id="user",
             data_schema=self._get_device_schema(),
         )
 
     async def async_step_set_name(self, user_input=None):
-        """Handle the step where the user sets the nickname for the selected device."""
+        """Handle the step where the user names the selected device."""
         if user_input is not None:
-            # Save the selected device and create the configuration entry
             return self.async_create_entry(
                 title=user_input["nickname"],
                 data={
@@ -68,7 +72,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "mac_address": self.selected_device["mac"],
                     "manufacturer": self.selected_device["manufacturer"],
                     "rssi": self.selected_device["rssi"],
-                    "uuids": self.selected_device.get("uuids", []),  # Store for reference
+                    "uuids": self.selected_device["uuids"],
                 },
             )
 
@@ -84,7 +88,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def _safe_discover_devices(self):
-        """Safely discover Bluetooth devices, logging any issues."""
+        """Safely discover Bluetooth devices, logging any issues, with auto-refresh."""
         try:
             devices = await discover_bluetooth_devices(self.hass)
             _LOGGER.debug(f"Discovered devices: {devices}")
@@ -99,9 +103,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if no_devices:
             return vol.Schema({vol.Optional("device_mac"): vol.In({"none": "No devices found"})})
 
-        # Format device options with icon, type, name, manufacturer, MAC, and RSSI
         device_options = {
-            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} - {device['manufacturer']} ({device['mac']}) | RSSI: {device['rssi']} dBm"
+            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']})"
             for device in self.discovered_devices
         }
 
