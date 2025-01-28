@@ -49,14 +49,14 @@ async def discover_bluetooth_devices(hass):
                 "id": getattr(device, "id", "Unknown"),
             }
 
-            # Log raw data
+            # Log raw data (JSON serializable format)
             try:
                 raw_data_log = {
                     "device": device_attributes,
                     "advertisement": adv_attributes,
                 }
                 _LOGGER.info(f"📡 RAW DEVICE DATA:\n{json.dumps(raw_data_log, indent=4)}")
-            except TypeError as e:
+            except Exception as e:
                 _LOGGER.warning(f"⚠️ Failed to log raw data: {e}")
 
             # Append processed data
@@ -88,6 +88,7 @@ def _serialize_bytes(data):
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
+
 
 
 
