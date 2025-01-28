@@ -41,16 +41,16 @@ async def discover_bluetooth_devices(hass):
                 icon = "⌚"  # Watch emoji
             elif "keyboard" in name_lower:
                 device_type = "Keyboard"
-                icon = "⌨️"  # Keyboard emoji
+                icon = "⌨️(Not Supported)"  # Keyboard emoji
             elif "mouse" in name_lower:
                 device_type = "Mouse"
-                icon = "🖱️"  # Mouse emoji
+                icon = "🖱️(Not Supported)"  # Mouse emoji
             elif "car" in name_lower or "vehicle" in name_lower:
                 device_type = "Car Audio"
                 icon = "🚗"  # Car emoji
             elif "printer" in name_lower:
                 device_type = "Printer"
-                icon = "🖨️"  # Printer emoji
+                icon = "🖨️(Not Supported)"  # Printer emoji
             elif "tablet" in name_lower or "ipad" in name_lower:
                 device_type = "Tablet"
                 icon = "📟"  # Tablet emoji
@@ -68,16 +68,16 @@ async def discover_bluetooth_devices(hass):
                 icon = "🏃"  # Running emoji
             elif "drone" in name_lower:
                 device_type = "Drone"
-                icon = "🛸"  # Drone emoji
+                icon = "🛸(Not Supported)"  # Drone emoji
             elif "hub" in name_lower or "gateway" in name_lower:
                 device_type = "Hub"
                 icon = "📡"  # Satellite emoji
             elif "sensor" in name_lower or "detector" in name_lower:
                 device_type = "Sensor"
-                icon = "📍"  # Location pin emoji
+                icon = "📍(Not Supported)"  # Location pin emoji
             elif "light" in name_lower or "bulb" in name_lower:
                 device_type = "Smart Light"
-                icon = "💡"  # Light bulb emoji
+                icon = "💡(Not Supported)"  # Light bulb emoji
 
             # Extract additional device information
             rssi = getattr(device, "rssi", "Unknown")

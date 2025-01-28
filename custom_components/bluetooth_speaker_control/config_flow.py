@@ -7,7 +7,6 @@ import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
 
-
 class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for Bluetooth Speaker Control."""
 
@@ -17,7 +16,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.discovered_devices = []
         self.selected_device = None
 
-    # LIST BluTooth Devices (Disovery)
+    # **STEP 1: LIST Bluetooth Devices (Discovery)**
     async def async_step_user(self, user_input=None):
         """Handle the initial step: list available devices."""
         if user_input is not None:
@@ -58,7 +57,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=self._get_device_schema(),
         )
-    # After Selecting a Device: Name The Device
+
+    # **STEP 2: Assign a Nickname to the Device**
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
         if user_input is not None:
@@ -85,12 +85,12 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Format device details for display
         device_details = (
-            f"**Device Information**\n"
-            f"{device_icon} **Type**: {device_type}\n"
-            f"🔹 **Name**: {device_name}\n"
-            f"🔹 **MAC Address**: `{device_mac}`\n"
-            f"🔹 **RSSI**: `{device_rssi} dBm`\n"
-            f"🔹 **Service UUIDs**: `{', '.join(device_uuids)}`\n"
+            f"**Device Information**\n\n"
+            f"🔹 **Name:** {device_name}\n"
+            f"{device_icon} **Type:** {device_type}\n"
+            f"🔹 **MAC Address:** `{device_mac}`\n"
+            f"🔹 **RSSI:** `{device_rssi} dBm`\n"
+            f"🔹 **Service UUIDs:** `{', '.join(device_uuids)}`\n"
         )
 
         # Set the default nickname to "Device Name (MAC)"
@@ -103,13 +103,12 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
+        # Pass `device_details` into `description_placeholders`
         return self.async_show_form(
             step_id="set_name",
             data_schema=data_schema,
             description_placeholders={"device_details": device_details},
         )
-
-
 
     @callback
     def _get_device_schema(self, no_devices=False):
@@ -118,7 +117,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return vol.Schema({vol.Optional("device_mac"): vol.In({"none": "No devices found"})})
 
         device_options = {
-            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']}) {device['rssi']} "
+            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']}) {device['rssi']} dBm"
             for device in self.discovered_devices
         }
 

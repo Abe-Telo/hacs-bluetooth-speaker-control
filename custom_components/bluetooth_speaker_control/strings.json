@@ -4,16 +4,30 @@
         "step": {
             "user": {
                 "title": "Configure Bluetooth Speaker",
-                "description": "Set up your Bluetooth speaker connection.",
+                "description": "Select a Bluetooth speaker to configure.",
                 "data": {
-                    "mac_address": "Speaker MAC Address",
-                    "pairing_name": "Display Name"
+                    "device_mac": "Select a device"
+                }
+            },
+            "set_name": {
+                "title": "Bluetooth Speaker Control",
+                "description": "**Device Details:**\n\n"
+                    "**🔹 Name:** {device_name}\n"
+                    "**🔹 Type:** {device_icon} {device_type}\n"
+                    "**🔹 MAC Address:** `{device_mac}`\n"
+                    "**🔹 RSSI:** `{device_rssi} dBm`\n"
+                    "**🔹 Manufacturer:** `{device_manufacturer}`\n"
+                    "**🔹 Service UUIDs:** `{device_uuids}`\n",
+                "data": {
+                    "nickname": "Nickname"
                 }
             }
-        },
-        "error": {
-            "invalid_mac": "Invalid MAC Address",
-            "connection_failed": "Failed to connect to the speaker."
         }
+    },
+    "error": {
+        "invalid_mac": "Invalid MAC Address",
+        "connection_failed": "Failed to connect to the speaker.",
+        "no_devices_found": "No Bluetooth devices found. Make sure your device is discoverable.",
+        "device_not_found": "Selected device is no longer available. Try refreshing."
     }
 }
