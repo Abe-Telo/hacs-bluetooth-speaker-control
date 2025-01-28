@@ -24,6 +24,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         devices = await discover_bluetooth_devices(self.hass)
 
         if not devices:
+            _LOGGER.error("No Bluetooth devices found during discovery.")
             return self.async_show_form(
                 step_id="user",
                 errors={"base": "no_devices_found"}
