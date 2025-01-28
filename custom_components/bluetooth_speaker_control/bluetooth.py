@@ -1,4 +1,3 @@
-import bluetooth
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
 
@@ -9,48 +8,37 @@ async def discover_bluetooth_devices(hass):
     try:
         scanner = async_get_scanner(hass)
         devices = scanner.discovered_devices
-        _LOGGER.debug(f"Discovered devices using HA Bluetooth API: {devices}")
+        _LOGGER.debug(f"Discovered devices using Home Assistant Bluetooth API: {devices}")
         return [{"name": device.name, "mac": device.address} for device in devices]
     except Exception as e:
-        _LOGGER.error(f"Error discovering Bluetooth devices using HA API: {e}")
-        return []
-
-def discover_devices():
-    """Discover nearby Bluetooth devices using manual PyBluez."""
-    try:
-        devices = bluetooth.discover_devices(lookup_names=True)
-        _LOGGER.debug(f"Discovered devices using PyBluez: {devices}")
-        return [{"mac": addr, "name": name} for addr, name in devices]
-    except Exception as e:
-        _LOGGER.error(f"Error discovering Bluetooth devices with PyBluez: {e}")
+        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
 
 def pair_device(mac_address):
-    """Pair with a Bluetooth device."""
+    """Simulate pairing with a Bluetooth device."""
     try:
-        # Simulated pairing logic (replace with `bluetoothctl` or system-specific commands)
-        _LOGGER.debug(f"Pairing with {mac_address}")
-        # Example: subprocess.run(["bluetoothctl", "pair", mac_address], check=True)
+        # Replace this logic with actual system commands like `bluetoothctl` if needed
+        _LOGGER.debug(f"Simulated pairing with {mac_address}")
         return True
     except Exception as e:
         _LOGGER.error(f"Error pairing with {mac_address}: {e}")
         return False
 
 def connect_device(mac_address):
-    """Connect to a Bluetooth device."""
+    """Simulate connecting to a Bluetooth device."""
     try:
-        # Simulated connection logic (implement system-specific commands for real use)
-        _LOGGER.debug(f"Connecting to {mac_address}")
+        # Replace this logic with actual system commands if needed
+        _LOGGER.debug(f"Simulated connecting to {mac_address}")
         return True
     except Exception as e:
         _LOGGER.error(f"Error connecting to {mac_address}: {e}")
         return False
 
 def disconnect_device(mac_address):
-    """Disconnect from a Bluetooth device."""
+    """Simulate disconnecting from a Bluetooth device."""
     try:
-        # Simulated disconnection logic (implement system-specific commands for real use)
-        _LOGGER.debug(f"Disconnecting from {mac_address}")
+        # Replace this logic with actual system commands if needed
+        _LOGGER.debug(f"Simulated disconnecting from {mac_address}")
         return True
     except Exception as e:
         _LOGGER.error(f"Error disconnecting from {mac_address}: {e}")
