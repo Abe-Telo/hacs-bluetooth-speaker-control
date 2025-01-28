@@ -17,6 +17,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.discovered_devices = []
         self.selected_device = None
 
+    # LIST BluTooth Devices (Disovery)
     async def async_step_user(self, user_input=None):
         """Handle the initial step: list available devices."""
         if user_input is not None:
@@ -57,7 +58,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=self._get_device_schema(),
         )
-
+    # After Selecting a Device: Name The Device
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
         if user_input is not None:
@@ -87,7 +88,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         # Set the default nickname to "Device_Name (MAC)"
-        default_nickname = f"{self.selected_device['name']} ({self.selected_device['mac']})"
+        default_nickname = f"{self.selected_device['name']} ({self.selected_device['mac']} ({self.selected_device['manufacturer']} ({self.selected_device['rssi']} ({self.selected_device['uuids']} )"
 
         # Form schema for the nickname input
         data_schema = vol.Schema(
