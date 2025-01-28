@@ -3,7 +3,7 @@
   "name": "Bluetooth Speaker Control",
   "version": "1.0.1001",
   "documentation": "https://github.com/Abe-Telo/hacs-bluetooth-speaker-control",
-  "requirements": [],
+  "requirements": ["bleak"],
   "dependencies": ["bluetooth"],
   "codeowners": ["@Abe-Telo"],
   "iot_class": "local_push",
