@@ -131,26 +131,27 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={"device_details": device_details},
         )
 
-    @callback
-    def _get_device_schema(self, no_devices=False):
-        """Generate the schema for the list of devices."""
-        if no_devices:
+        @callback
+        def _get_device_schema(self, no_devices=False):
+            """Generate the schema for the list of devices."""
+            if no_devices:
+                return vol.Schema(
+                    {
+                        vol.Optional("device_mac"): vol.In(
+                            {"none": "No devices found. Make sure devices are discoverable and try again."}
+                        )
+                    }
+                )
+
+            device_options = {
+                device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']}) {device['rssi']} dBm"
+                for device in self.discovered_devices
+            }
+
             return vol.Schema(
                 {
-                    vol.Optional("device_mac"): vol.In(
-                        {"none": "No devices found. Make sure devices are discoverable and try again."}
-                    )
+                    vol.Required("device_mac"): vol.In(device_options),
                 }
             )
 
-        device_options = {
-            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']}) {device['rssi']} dBm"
-            for device in self.discovered_devices
-        }
-
-        return vol.Schema(
-            {
-                vol.Required("device_mac"): vol.In(device_options),
-            }
-        )
 
