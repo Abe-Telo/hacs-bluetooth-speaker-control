@@ -19,18 +19,17 @@ async def discover_bluetooth_devices(hass):
 
         device_list = []
 
+        _LOGGER.info("🔍 Scanning for Bluetooth devices...")
+
         for device in devices:
-            # 🚀 LOG RAW DEVICE DATA (What is being received)
-            try:
-                raw_data = {
-                    "name": device.name,
-                    "mac": device.address,
-                    "rssi": getattr(device, "rssi", "Unknown"),
-                    "uuids": getattr(device, "service_uuids", []),
-                }
-                _LOGGER.info(f"🔵 Bluetooth RAW DEVICE DATA:\n{json.dumps(raw_data, indent=4)}")
-            except Exception as log_error:
-                _LOGGER.warning(f"⚠️ Failed to log raw device data: {log_error}")
+            # 🚀 LOG RAW DEVICE DATA (Everything received)
+            raw_data = {
+                "name": getattr(device, "name", "Unknown"),
+                "mac": getattr(device, "address", "Unknown"),
+                "rssi": getattr(device, "rssi", "Unknown"),
+                "uuids": getattr(device, "service_uuids", []),
+            }
+            _LOGGER.info(f"🔵 Bluetooth RAW DEVICE DATA:\n{json.dumps(raw_data, indent=4)}")
 
             # Default values
             device_type = "Unknown"
@@ -40,7 +39,7 @@ async def discover_bluetooth_devices(hass):
             uuids = getattr(device, "service_uuids", [])
 
             # Use name-based detection to assign type and icons
-            name_lower = device.name.lower() if device.name else ""
+            name_lower = raw_data["name"].lower() if raw_data["name"] else ""
 
             if "headphone" in name_lower:
                 device_type = "Headphone"
@@ -66,8 +65,8 @@ async def discover_bluetooth_devices(hass):
 
             # Construct device dictionary
             formatted_data = {
-                "name": device.name or "Unknown",
-                "mac": device.address,
+                "name": raw_data["name"],
+                "mac": raw_data["mac"],
                 "type": device_type,
                 "icon": icon,  # Store the correct icon for later use
                 "rssi": rssi,
@@ -76,10 +75,7 @@ async def discover_bluetooth_devices(hass):
             }
 
             # 🚀 LOG FINAL PROCESSED DEVICE DATA
-            try:
-                _LOGGER.info(f"✅ Bluetooth PROCESSED DEVICE DATA:\n{json.dumps(formatted_data, indent=4)}")
-            except Exception as log_error:
-                _LOGGER.warning(f"⚠️ Failed to log processed device data: {log_error}")
+            _LOGGER.info(f"✅ Bluetooth PROCESSED DEVICE DATA:\n{json.dumps(formatted_data, indent=4)}")
 
             device_list.append(formatted_data)
 
@@ -88,6 +84,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"🔥 Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
+
 
 
 
