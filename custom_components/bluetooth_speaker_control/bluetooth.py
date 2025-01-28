@@ -18,42 +18,78 @@ async def discover_bluetooth_devices(hass):
 
         for device in devices:
             device_type = "Unknown"
-            icon = "🚀"  # Default icon
+            icon = "🔵"  # Default icon for unknown devices
 
             # Use name-based detection to assign type and icons
             name_lower = device.name.lower() if device.name else ""
 
+            # Temporery Display all icons to see if it discovers Correct BT
             if "headphone" in name_lower:
                 device_type = "Headphone"
-                icon = "mdi:headphones"
+                icon = "🎧"  # Headphone emoji
             elif "speaker" in name_lower or "music" in name_lower:
                 device_type = "Speaker"
-                icon = "mdi:speaker"
+                icon = "🔊"  # Speaker emoji
             elif "tv" in name_lower or "display" in name_lower:
                 device_type = "TV"
-                icon = "mdi:television"
+                icon = "📺"  # Television emoji
             elif "phone" in name_lower or "mobile" in name_lower:
                 device_type = "Phone"
-                icon = "mdi:cellphone"
+                icon = "📱"  # Mobile phone emoji
             elif "watch" in name_lower or "wearable" in name_lower:
                 device_type = "Wearable"
-                icon = "mdi:watch"
+                icon = "⌚"  # Watch emoji
             elif "keyboard" in name_lower:
                 device_type = "Keyboard"
-                icon = "mdi:keyboard"
+                icon = "⌨️"  # Keyboard emoji
             elif "mouse" in name_lower:
                 device_type = "Mouse"
-                icon = "mdi:mouse"
+                icon = "🖱️"  # Mouse emoji
+            elif "car" in name_lower or "vehicle" in name_lower:
+                device_type = "Car Audio"
+                icon = "🚗"  # Car emoji
+            elif "printer" in name_lower:
+                device_type = "Printer"
+                icon = "🖨️"  # Printer emoji
+            elif "tablet" in name_lower or "ipad" in name_lower:
+                device_type = "Tablet"
+                icon = "📟"  # Tablet emoji
+            elif "camera" in name_lower:
+                device_type = "Camera"
+                icon = "📷"  # Camera emoji
+            elif "game" in name_lower or "controller" in name_lower:
+                device_type = "Game Controller"
+                icon = "🎮"  # Game controller emoji
+            elif "smart" in name_lower:
+                device_type = "Smart Device"
+                icon = "🏠"  # Smart home emoji
+            elif "fitness" in name_lower or "tracker" in name_lower:
+                device_type = "Fitness Tracker"
+                icon = "🏃"  # Running emoji
+            elif "drone" in name_lower:
+                device_type = "Drone"
+                icon = "🛸"  # Drone emoji
+            elif "hub" in name_lower or "gateway" in name_lower:
+                device_type = "Hub"
+                icon = "📡"  # Satellite emoji
+            elif "sensor" in name_lower or "detector" in name_lower:
+                device_type = "Sensor"
+                icon = "📍"  # Location pin emoji
+            elif "light" in name_lower or "bulb" in name_lower:
+                device_type = "Smart Light"
+                icon = "💡"  # Light bulb emoji
 
+            # Extract additional device information
             rssi = getattr(device, "rssi", "Unknown")
             manufacturer = getattr(device, "manufacturer", "Unknown")
             uuids = getattr(device, "service_uuids", [])
 
+            # Append device to the list
             device_list.append({
                 "name": device.name or "Unknown",
                 "mac": device.address,
                 "type": device_type,
-                "icon": icon,  # Store the correct icon for later use
+                "icon": icon,  # Emoji icon for display
                 "rssi": rssi,
                 "manufacturer": manufacturer,
                 "uuids": uuids,
@@ -64,6 +100,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
+
 
 
 
