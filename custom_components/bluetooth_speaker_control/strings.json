@@ -1,0 +1,19 @@
+{
+    "title": "Bluetooth Speaker Control",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Configure Bluetooth Speaker",
+                "description": "Set up your Bluetooth speaker connection.",
+                "data": {
+                    "mac_address": "Speaker MAC Address",
+                    "pairing_name": "Display Name"
+                }
+            }
+        },
+        "error": {
+            "invalid_mac": "Invalid MAC Address",
+            "connection_failed": "Failed to connect to the speaker."
+        }
+    }
+}
