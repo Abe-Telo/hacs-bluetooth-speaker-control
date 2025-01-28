@@ -7,6 +7,11 @@ _LOGGER = logging.getLogger(__name__)
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
+        # Check if the async_get_scanner method is supported in this Home Assistant version
+        if not hasattr(hass.components.bluetooth, "async_get_scanner"):
+            _LOGGER.error("Bluetooth scanner is not supported in this Home Assistant version.")
+            return []
+
         # Get the Bluetooth scanner
         scanner = async_get_scanner(hass)
         if not scanner:
@@ -37,7 +42,7 @@ async def discover_bluetooth_devices(hass):
 
             # Log raw device data
             try:
-                _LOGGER.info(f"📡 RAW DEVICE DATA:\n{json.dumps(device_data, indent=4)}")
+                __LOGGER.info("📡 RAW DEVICE DATA: %s", device_data)
             except Exception as e:
                 _LOGGER.warning(f"⚠️ Failed to log raw device data: {e}")
 
