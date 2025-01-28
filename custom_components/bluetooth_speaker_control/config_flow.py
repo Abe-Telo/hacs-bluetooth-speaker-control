@@ -81,6 +81,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
 
+
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
         if user_input is not None:
