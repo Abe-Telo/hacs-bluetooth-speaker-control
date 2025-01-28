@@ -21,18 +21,20 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """Handle the initial step: list available devices."""
         errors = {}
+        _LOGGER.debug("Starting async_step_user")
 
         if user_input is not None:
             selected_mac = user_input.get("device_mac")
-
             if not selected_mac or selected_mac == "none":
                 _LOGGER.error("❌ Invalid selection: No device selected.")
+                errors["base"] = "invalid_selection"
                 return self.async_show_form(
                     step_id="user",
                     data_schema=self._get_device_schema(no_devices=not self.discovered_devices),
-                    errors={"base": "invalid_selection"},
+                    errors=errors,
                 )
 
+            _LOGGER.debug(f"Selected MAC: {selected_mac}")
             self.selected_device = next(
                 (device for device in self.discovered_devices if device["mac"] == selected_mac),
                 None,
@@ -43,41 +45,30 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_set_name()
 
             _LOGGER.error(f"❌ Selected MAC address {selected_mac} not found in discovered devices.")
-            return self.async_show_form(
-                step_id="user",
-                data_schema=self._get_device_schema(),
-                errors={"base": "device_not_found"},
-            )
+            errors["base"] = "device_not_found"
 
-        _LOGGER.info("🔍 Starting Bluetooth device discovery...")
+        _LOGGER.info("🔍 Discovering Bluetooth devices...")
         try:
             devices = await discover_bluetooth_devices(self.hass)
             self.discovered_devices = devices
         except Exception as e:
             _LOGGER.error(f"🔥 Error during device discovery: {e}")
-            return self.async_show_form(
-                step_id="user",
-                data_schema=self._get_device_schema(no_devices=True),
-                errors={"base": "discovery_failed"},
-            )
+            errors["base"] = "discovery_failed"
 
         if not self.discovered_devices:
             _LOGGER.warning(
-                "⚠️ No devices discovered. Ensure devices are powered on, discoverable, and within range of the Bluetooth adapter."
+                "⚠️ No devices discovered. Ensure devices are powered on, discoverable, and within range."
             )
-            return self.async_show_form(
-                step_id="user",
-                data_schema=self._get_device_schema(no_devices=True),
-                errors={"base": "no_devices_found"},
-            )
+            errors["base"] = "no_devices_found"
 
         _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
         for device in self.discovered_devices:
-            _LOGGER.info(f"🔵 Discovered Device: {device}")
+            _LOGGER.debug(f"🔵 Discovered Device: {device}")
 
         return self.async_show_form(
             step_id="user",
-            data_schema=self._get_device_schema(),
+            data_schema=self._get_device_schema(no_devices=not self.discovered_devices),
+            errors=errors,
         )
 
 
