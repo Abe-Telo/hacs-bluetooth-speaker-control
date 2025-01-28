@@ -1,7 +1,10 @@
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.components.bluetooth import async_get_scanner
 from .const import DOMAIN, DEFAULT_NAME
+from .bluetooth import discover_bluetooth_devices
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle the configuration flow for Bluetooth Speaker Control."""
@@ -17,8 +20,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data=user_input,
             )
 
-        # Discover devices using Home Assistant's Bluetooth API
-        devices = await self.discover_bluetooth_devices()
+        # Discover devices using Home Assistant's Bluetooth integration
+        devices = await discover_bluetooth_devices(self.hass)
 
         if not devices:
             return self.async_show_form(
@@ -31,12 +34,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=self._get_schema(devices)
         )
-
-    async def discover_bluetooth_devices(self):
-        """Discover nearby Bluetooth devices using Home Assistant's API."""
-        scanner = async_get_scanner(self.hass)
-        devices = scanner.discovered_devices
-        return [{"name": device.name, "mac": device.address} for device in devices]
 
     @callback
     def _get_schema(self, devices):
