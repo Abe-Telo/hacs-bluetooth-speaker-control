@@ -1,6 +1,6 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
-import json  # For pretty-printing structured data
+import json  # For structured logging
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -12,32 +12,28 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("Bluetooth scanner not available.")
             return []
 
-        # Use discovered_devices_and_advertisement_data for better insights
-        discovered_devices = scanner.discovered_devices_and_advertisement_data
+        devices = scanner.discovered_devices  # ✅ Use the supported API
         device_list = []
 
-        for device, adv_data in discovered_devices.values():
-            # Log raw data for the device and advertisement data
+        for device in devices:
             try:
-                _LOGGER.info("🔍 RAW DEVICE DATA:")
-                _LOGGER.info(json.dumps(device.__dict__, indent=4, default=str))
-
-                _LOGGER.info("📡 RAW ADVERTISEMENT DATA:")
-                _LOGGER.info(json.dumps(adv_data.__dict__, indent=4, default=str))
-            except AttributeError as e:
+                # Log raw device data
+                raw_data = json.dumps(device.__dict__, indent=4, default=str)
+                _LOGGER.info(f"🔍 RAW DEVICE DATA:\n{raw_data}")
+            except Exception as e:
                 _LOGGER.warning(f"⚠️ Failed to log raw device data: {e}")
 
-            # Extract relevant data
-            rssi = adv_data.rssi if adv_data else "Unknown"
+            # Extract device attributes
+            name = device.name or "Unknown"
+            mac = device.address
+            rssi = getattr(device, "rssi", "Unknown")  # ❌ Deprecated but functional for now
+            uuids = getattr(device, "service_uuids", [])
+            manufacturer = "Unknown"  # Replace with actual extraction logic if needed
 
-            # Default values
+            # Determine device type and icon
             device_type = "Unknown"
             icon = "🔵"  # Default Bluetooth icon
-            manufacturer = adv_data.manufacturer if adv_data else "Unknown"
-            uuids = adv_data.service_uuids if adv_data else []
-
-            # Use name-based detection to assign type and icons
-            name_lower = device.name.lower() if device.name else ""
+            name_lower = name.lower()
 
             if "headphone" in name_lower:
                 device_type = "Headphone"
@@ -54,34 +50,25 @@ async def discover_bluetooth_devices(hass):
             elif "watch" in name_lower or "wearable" in name_lower:
                 device_type = "Wearable"
                 icon = "⌚"
-            elif "keyboard" in name_lower:
-                device_type = "Keyboard"
-                icon = "⌨️"
-            elif "mouse" in name_lower:
-                device_type = "Mouse"
-                icon = "🖱️"
 
-            # Log processed device data
-            formatted_data = {
-                "name": device.name or "Unknown",
-                "mac": device.address,
+            # Add processed device data to the list
+            device_list.append({
+                "name": name,
+                "mac": mac,
                 "type": device_type,
                 "icon": icon,
                 "rssi": rssi,
                 "manufacturer": manufacturer,
                 "uuids": uuids,
-            }
-            _LOGGER.info("✅ PROCESSED DEVICE DATA:")
-            _LOGGER.info(json.dumps(formatted_data, indent=4))
+            })
 
-            # Append to device list
-            device_list.append(formatted_data)
-
+        _LOGGER.info(f"✅ PROCESSED DEVICE LIST:\n{json.dumps(device_list, indent=4)}")
         return device_list
 
     except Exception as e:
-        _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
+        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
+
 
 
 
