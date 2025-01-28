@@ -14,35 +14,40 @@ async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
         scanner = async_get_scanner(hass)
-        devices = scanner.discovered_devices
+        devices = scanner.discovered_devices_and_advertisement_data  # Corrected to get full data
+
         _LOGGER.debug(f"Discovered devices using Home Assistant Bluetooth API: {devices}")
 
         device_list = []
-        for device in devices:
-            # Default to unknown type and icon
+        for device, adv_data in devices.items():  # Get both BLEDevice and AdvertisementData
             device_type = "Unknown"
-            icon = DEVICE_TYPE_ICONS["Unknown"]
+            icon = "mdi:bluetooth"
 
-            # Example type classification
+            # Determine device type based on name (simple logic, improve as needed)
             if "headphone" in device.name.lower():
                 device_type = "Headphone"
-                icon = DEVICE_TYPE_ICONS["Headphone"]
+                icon = "mdi:headphones"
             elif "music" in device.name.lower():
                 device_type = "Music Player"
-                icon = DEVICE_TYPE_ICONS["Music Player"]
-            elif "speaker" in device.name.lower():
-                device_type = "Speaker"
-                icon = DEVICE_TYPE_ICONS["Speaker"]
+                icon = "mdi:speaker"
 
-            # Append device information
+            # Fetch manufacturer from AdvertisementData
+            manufacturer = adv_data.manufacturer_data or "Unknown"
+
+            # Extract RSSI from AdvertisementData (fixing deprecated BLEDevice.rssi)
+            rssi = adv_data.rssi or "Unknown"
+
+            # Extract UUIDs from AdvertisementData
+            uuids = adv_data.service_uuids or []
+
             device_list.append({
                 "name": device.name,
                 "mac": device.address,
-                "type": device_type,                 # Device type
-                "icon": icon,                        # Icon based on type
-                "rssi": device.rssi or "Unknown",    # Signal strength
-                "manufacturer": device.manufacturer or "Unknown",  # Manufacturer
-                "uuids": device.service_uuids or [], # Service UUIDs
+                "type": device_type,
+                "icon": icon,
+                "rssi": rssi,
+                "manufacturer": manufacturer,
+                "uuids": uuids
             })
 
         return device_list
