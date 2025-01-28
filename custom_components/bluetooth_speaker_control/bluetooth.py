@@ -12,7 +12,7 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("❌ Bluetooth scanner not available.")
             return []
 
-        # 🚀 Use the previous working method: `scanner.discovered_devices`
+        # 🚀 Using the previously working method
         discovered_devices = scanner.discovered_devices
 
         if not discovered_devices:
@@ -26,7 +26,7 @@ async def discover_bluetooth_devices(hass):
             raw_device_data = json.dumps(device.__dict__, indent=4, default=str)
             _LOGGER.debug(f"🔍 RAW DEVICE DATA:\n{raw_device_data}")
 
-            # Extract device attributes safely
+            # Extract attributes safely
             name = getattr(device, "name", "Unknown")
             mac = getattr(device, "address", "Unknown")
             rssi = getattr(device, "rssi", "Unknown")
@@ -35,7 +35,7 @@ async def discover_bluetooth_devices(hass):
             # Detect device type and assign an icon
             device_type, icon = detect_device_type(name)
 
-            # 🚀 Log final structured device data
+            # 🚀 Log structured device data
             formatted_data = {
                 "name": name,
                 "mac": mac,
@@ -117,6 +117,18 @@ def detect_device_type(name):
         icon = "💡(Not Supported)"
 
     return device_type, icon
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
