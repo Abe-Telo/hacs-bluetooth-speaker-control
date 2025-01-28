@@ -17,12 +17,10 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.discovered_devices = []
         self.selected_device = None
 
-    # **STEP 1: LIST Bluetooth Devices (Discovery)**
     async def async_step_user(self, user_input=None):
         """Handle the initial step: list available devices."""
         if user_input is not None:
             selected_mac = user_input.get("device_mac")
-
             if not selected_mac or selected_mac == "none":
                 _LOGGER.error("❌ Invalid selection: No device selected.")
                 return self.async_show_form(
@@ -47,9 +45,16 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={"base": "device_not_found"},
             )
 
-
         _LOGGER.info("🔍 Discovering Bluetooth devices...")
-        self.discovered_devices = await discover_bluetooth_devices(self.hass)
+        try:
+            self.discovered_devices = await discover_bluetooth_devices(self.hass)
+        except Exception as e:
+            _LOGGER.error(f"🔥 Error during device discovery: {e}")
+            return self.async_show_form(
+                step_id="user",
+                data_schema=self._get_device_schema(no_devices=True),
+                errors={"base": "discovery_failed"},
+            )
 
         if not self.discovered_devices:
             _LOGGER.warning("⚠️ No Bluetooth devices discovered.")
@@ -61,14 +66,16 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
         for device in self.discovered_devices:
-            _LOGGER.info(f"🔵 Discovered Device: {json.dumps(device, indent=4)}")
+            try:
+                _LOGGER.info(f"🔵 Discovered Device:\n{json.dumps(device, indent=4)}")
+            except Exception as e:
+                _LOGGER.warning(f"⚠️ Failed to log device: {e}")
 
         return self.async_show_form(
             step_id="user",
             data_schema=self._get_device_schema(),
         )
 
-    # **STEP 2: Assign a Nickname to the Device**
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
         if user_input is not None:
@@ -78,13 +85,17 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data=self.selected_device,
             )
 
-        # Extract all relevant device information
-        device_name = self.selected_device["name"]
-        device_type = self.selected_device["type"]
-        device_mac = self.selected_device["mac"]
-        device_rssi = self.selected_device["rssi"]
-        device_uuids = self.selected_device["uuids"] if self.selected_device["uuids"] else ["None"]
-        device_icon = self.selected_device["icon"]
+        # Extract relevant device information
+        try:
+            device_name = self.selected_device.get("name", "Unknown")
+            device_type = self.selected_device.get("type", "Unknown")
+            device_mac = self.selected_device.get("mac", "Unknown")
+            device_rssi = self.selected_device.get("rssi", "Unknown")
+            device_uuids = self.selected_device.get("service_uuids", ["None"])
+            device_icon = self.selected_device.get("icon", "🔵")
+        except Exception as e:
+            _LOGGER.error(f"⚠️ Error extracting device details: {e}")
+            return self.async_abort(reason="device_details_error")
 
         # Format device details for display
         device_details = (
@@ -96,10 +107,10 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             f"🔹 **Service UUIDs:** `{', '.join(device_uuids)}`\n"
         )
 
-        # Log device info before showing the form
-        _LOGGER.info(f"🔵 Bluetooth Device Details for Naming: {json.dumps(self.selected_device, indent=4)}")
+        # Log the device details
+        _LOGGER.info(f"🔵 Device Details: {json.dumps(self.selected_device, indent=4)}")
 
-        # Set the default nickname to "Device Name (MAC)"
+        # Default nickname
         default_nickname = f"{device_name} ({device_mac})"
 
         # Define input schema
@@ -109,7 +120,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
-        # Pass `device_details` into `description_placeholders`
         return self.async_show_form(
             step_id="set_name",
             data_schema=data_schema,
