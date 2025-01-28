@@ -12,17 +12,16 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("❌ Bluetooth scanner not available.")
             return []
 
-        # 🚀 Log the scanner object itself
         _LOGGER.debug(f"🔍 Scanner object: {scanner}")
 
         discovered_devices = scanner.discovered_devices
 
-        # 🚀 Log the raw discovered devices list
-        _LOGGER.info(f"🔍 RAW DISCOVERED DEVICES:\n{json.dumps([device.__dict__ for device in discovered_devices], indent=4, default=str)}")
+        # 🚀 Log the raw discovered devices (Even if Empty)
+        _LOGGER.info(f"🔍 RAW DISCOVERED DEVICES: {json.dumps([device.__dict__ for device in discovered_devices], indent=4, default=str)}")
 
         if not discovered_devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices found.")
-            return []
+            _LOGGER.warning("⚠️ No Bluetooth devices found, but still logging an empty list for debugging.")
+            return []  # Keep returning an empty list to prevent errors.
 
         device_list = []
 
@@ -30,9 +29,13 @@ async def discover_bluetooth_devices(hass):
             # Default values
             name = device.name or "Unknown"
             mac = device.address
-            rssi = getattr(device, "rssi", "Unknown")
             uuids = getattr(device, "service_uuids", [])
             manufacturer = "Unknown"
+
+            # ✅ **Fix Deprecated RSSI Warning**
+            rssi = getattr(device, "rssi", None)  # Try `device.rssi`
+            if rssi is None:
+                rssi = "Unknown (No RSSI Data)"  # If not found, return this.
 
             # Detect device type and assign an icon
             device_type, icon = detect_device_type(name)
@@ -120,6 +123,7 @@ def detect_device_type(name):
         icon = "💡"
 
     return device_type, icon
+
 
 
 
