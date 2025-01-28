@@ -18,7 +18,7 @@ async def discover_bluetooth_devices(hass):
 
         for device in devices:
             device_type = "Unknown"
-            icon = "mdi:bluetooth"  # Default icon
+            icon = "🚀"  # Default icon
 
             # Use name-based detection to assign type and icons
             name_lower = device.name.lower() if device.name else ""
@@ -64,6 +64,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
+
 
 
 
