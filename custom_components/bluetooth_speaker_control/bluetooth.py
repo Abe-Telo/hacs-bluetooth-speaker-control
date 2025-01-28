@@ -6,35 +6,23 @@ _LOGGER = logging.getLogger(__name__)
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
-        # Check if the async_get_scanner method is supported
-        if not hasattr(hass.components.bluetooth, "async_get_scanner"):
-            _LOGGER.error("❌ Bluetooth scanner is not supported in this Home Assistant version.")
-            return []
-
         # Get the Bluetooth scanner
         scanner = async_get_scanner(hass)
         if not scanner:
             _LOGGER.error("❌ Bluetooth scanner is unavailable.")
             return []
 
-        # Use discovered_devices_and_advertisement_data if available
+        # Attempt to use discovered_devices_and_advertisement_data
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
 
         if not discovered_devices:
-            _LOGGER.warning(
-                "⚠️ Using fallback to scanner.discovered_devices. Ensure Home Assistant is up-to-date for full compatibility."
-            )
+            _LOGGER.warning("⚠️ Using fallback to scanner.discovered_devices.")
             discovered_devices = {device: None for device in scanner.discovered_devices}
 
-
-        # Log discovered devices count
-        _LOGGER.info(f"🔍 Discovered {len(discovered_devices)} Bluetooth devices.")
-
-        if len(discovered_devices) == 0:
+        if not discovered_devices:
             _LOGGER.warning("⚠️ No devices discovered. Ensure devices are in discoverable mode and within range.")
             return []
 
-        # Collect device details
         device_list = []
         for device, adv_data in discovered_devices.items():
             try:
@@ -52,6 +40,7 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
         return []
+
 
 
 
