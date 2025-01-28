@@ -1,57 +1,27 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
-import json
 
-_LOGGER = logging.getLogger(__name__) 
+_LOGGER = logging.getLogger(__name__)
 
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
         scanner = async_get_scanner(hass)
         if not scanner:
-            _LOGGER.error("❌ Bluetooth scanner not available.")
+            _LOGGER.error("Bluetooth scanner not available.")
             return []
 
-        devices = scanner.discovered_devices
+        devices = scanner.discovered_devices_and_advertisement_data
         device_list = []
 
-        _LOGGER.info(f"🔍 **Found {len(devices)} Bluetooth devices**")
-
-        for device in devices:
-            # 🚀 LOG RAW DEVICE DATA SAFELY
-            try:
-                raw_device_data = {
-                    "name": getattr(device, "name", "Unknown"),
-                    "address": getattr(device, "address", "Unknown"),
-                    "rssi": getattr(device, "rssi", "Unknown"),
-                    "manufacturer": getattr(device, "manufacturer", "Unknown"),
-                    "uuids": getattr(device, "service_uuids", []),
-                }
-                _LOGGER.info(f"📡 **RAW BLUETOOTH DEVICE DATA:**\n{json.dumps(raw_device_data, indent=4)}")
-            except Exception as e:
-                _LOGGER.warning(f"⚠️ Failed to log raw device data: {e}")
+        for device, adv_data in devices:
+            # Retrieve RSSI from AdvertisementData
+            rssi = adv_data.rssi if adv_data else "Unknown"
 
             # Default values
             device_type = "Unknown"
             icon = "🔵"  # Default Bluetooth icon
-            manufacturer = getattr(device, "manufacturer", "Unknown")
-
-            # 🔥 Check if `AdvertisementData` is available
-            adv_data = getattr(device, "advertisement_data", None)
-            use_adv_rssi = False  # Default to BLEDevice.rssi
-            
-            if adv_data and hasattr(adv_data, "rssi"):
-                use_adv_rssi = True
-
-            # Choose the correct RSSI source
-            if use_adv_rssi:
-                rssi = adv_data.rssi  # ✅ Use AdvertisementData.rssi if available
-                _LOGGER.info("📶 **Using AdvertisementData.rssi**")
-            else:
-                rssi = getattr(device, "rssi", "Unknown")  # ❌ Fall back to BLEDevice.rssi
-                _LOGGER.warning("⚠️ **Using BLEDevice.rssi (Deprecated). AdvertisementData.rssi NOT found.**")
-
-            # Get UUIDs
+            manufacturer = "Unknown"
             uuids = getattr(device, "service_uuids", [])
 
             # Use name-based detection to assign type and icons
@@ -80,7 +50,7 @@ async def discover_bluetooth_devices(hass):
                 icon = "🖱️"
 
             # Construct device dictionary
-            processed_device = {
+            device_list.append({
                 "name": device.name or "Unknown",
                 "mac": device.address,
                 "type": device_type,
@@ -88,18 +58,15 @@ async def discover_bluetooth_devices(hass):
                 "rssi": rssi,
                 "manufacturer": manufacturer,
                 "uuids": uuids,
-            }
-
-            # ✅ Log processed device data
-            _LOGGER.info(f"✅ **PROCESSED DEVICE DATA:**\n{json.dumps(processed_device, indent=4)}")
-
-            device_list.append(processed_device)
+            })
 
         return device_list
 
     except Exception as e:
-        _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
+        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
+
+
 
 
 
