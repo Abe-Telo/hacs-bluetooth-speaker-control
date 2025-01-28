@@ -14,34 +14,45 @@ async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
         scanner = async_get_scanner(hass)
-        devices = scanner.discovered_devices_and_advertisement_data  # Corrected to get full data
+        if not scanner:
+            _LOGGER.error("Bluetooth scanner not available.")
+            return []
+
+        devices = scanner.discovered_devices_and_advertisement_data  # Corrected API usage
+
+        if not devices:
+            _LOGGER.warning("No Bluetooth devices found.")
+            return []
 
         _LOGGER.debug(f"Discovered devices using Home Assistant Bluetooth API: {devices}")
 
         device_list = []
-        for device, adv_data in devices.items():  # Get both BLEDevice and AdvertisementData
+        for device, adv_data in devices.items():  # Extract BLEDevice & AdvertisementData
             device_type = "Unknown"
             icon = "mdi:bluetooth"
 
             # Determine device type based on name (simple logic, improve as needed)
-            if "headphone" in device.name.lower():
+            if device.name and "headphone" in device.name.lower():
                 device_type = "Headphone"
                 icon = "mdi:headphones"
-            elif "music" in device.name.lower():
+            elif device.name and "music" in device.name.lower():
                 device_type = "Music Player"
                 icon = "mdi:speaker"
 
-            # Fetch manufacturer from AdvertisementData
-            manufacturer = adv_data.manufacturer_data or "Unknown"
+            # Fetch manufacturer safely from AdvertisementData
+            manufacturer = (
+                next(iter(adv_data.manufacturer_data.values()), "Unknown")
+                if adv_data.manufacturer_data else "Unknown"
+            )
 
-            # Extract RSSI from AdvertisementData (fixing deprecated BLEDevice.rssi)
-            rssi = adv_data.rssi or "Unknown"
+            # Extract RSSI correctly from AdvertisementData
+            rssi = adv_data.rssi if adv_data.rssi is not None else "Unknown"
 
             # Extract UUIDs from AdvertisementData
             uuids = adv_data.service_uuids or []
 
             device_list.append({
-                "name": device.name,
+                "name": device.name or "Unknown",
                 "mac": device.address,
                 "type": device_type,
                 "icon": icon,
