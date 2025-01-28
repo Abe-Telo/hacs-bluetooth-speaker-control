@@ -4,7 +4,6 @@ import json
 
 _LOGGER = logging.getLogger(__name__)
 
-
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
@@ -14,8 +13,9 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("❌ Bluetooth scanner not available.")
             return []
 
-        # Get discovered devices and advertisement data
+        # Attempt to use discovered_devices_and_advertisement_data
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
+
         if not discovered_devices:
             _LOGGER.warning("⚠️ Using fallback: discovered_devices only.")
             discovered_devices = {device: None for device in scanner.discovered_devices}
@@ -25,16 +25,16 @@ async def discover_bluetooth_devices(hass):
         _LOGGER.info(f"🔍 Found {len(discovered_devices)} Bluetooth devices.")
 
         for device, adv_data in discovered_devices.items():
-            # Safely extract attributes from AdvertisementData
-            adv_data_attributes = extract_adv_data(adv_data)
+            # Extract AdvertisementData attributes
+            adv_attributes = extract_adv_data(adv_data)
 
-            # Safely extract attributes from BLEDevice
+            # Extract BLEDevice attributes
             device_attributes = extract_ble_device(device)
 
             # Merge device and advertisement data
             device_data = {
                 **device_attributes,
-                **adv_data_attributes,
+                **adv_attributes,
             }
 
             # Log raw device data
@@ -95,6 +95,7 @@ def _serialize_bytes(data):
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
+
 
 
 
