@@ -1,0 +1,7 @@
+{
+  "name": "Bluetooth Speaker Control",
+  "content_in_root": false,
+  "domains": ["bluetooth_speaker_control"],
+  "homeassistant": "2023.1.0",
+  "render_readme": true
+}
