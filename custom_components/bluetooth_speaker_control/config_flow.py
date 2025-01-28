@@ -18,7 +18,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.selected_device = None
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step: list available devices with dynamic discovery."""
+        """Handle the initial step: list available devices."""
         if user_input is not None:
             # Handle device selection
             selected_mac = user_input.get("device_mac")
@@ -29,7 +29,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if self.selected_device:
                 return await self.async_step_set_name()
 
-            # Log error if the device is not found
+            # Invalid device selection
             _LOGGER.error(f"Selected MAC address {selected_mac} not found in discovered devices.")
             return self.async_show_form(
                 step_id="user",
@@ -38,7 +38,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         # Attempt to discover devices
-        self.discovered_devices = await self._safe_discover_devices()
+        #self.discovered_devices = await self._safe_discover_devices()
+        self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
         if not self.discovered_devices:
             _LOGGER.warning("No Bluetooth devices discovered.")
@@ -56,24 +57,26 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_set_name(self, user_input=None):
-        """Handle the step where the user names the selected device."""
+        """Handle the step where the user sets the nickname for the selected device."""
         if user_input is not None:
             # Save the selected device and create the configuration entry
             return self.async_create_entry(
-                title=user_input["device_name"],
+                title=user_input["nickname"],
                 data={
-                    "device_name": user_input["device_name"],
+                    "nickname": user_input["nickname"],
+                    "name": self.selected_device["name"],
+                    "type": self.selected_device["type"],
                     "mac_address": self.selected_device["mac"],
                 },
             )
 
-        # Display the form to set the device name
+
+        # Show form to set the nickname
         data_schema = vol.Schema(
             {
-                vol.Required("device_name", default=self.selected_device.get("name", "Unknown Device")): str,
+                vol.Required("nickname", default=self.selected_device["name"]): str,
             }
         )
-
         return self.async_show_form(
             step_id="set_name",
             data_schema=data_schema,
@@ -93,12 +96,13 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _get_device_schema(self, no_devices=False):
         """Generate the schema for the list of devices."""
         if no_devices:
-            # No devices found: Show a static message
+            # No devices found
             return vol.Schema({vol.Optional("device_mac"): vol.In({"none": "No devices found"})})
 
-        # Devices found: Create a list of options
+        # Devices found: Show list of devices with Type, Name, and MAC
         device_options = {
-            device["mac"]: f"{device['name']} ({device['mac']})" for device in self.discovered_devices
+            device["mac"]: f"{device['type']} | {device['name']} ({device['mac']})"
+            for device in self.discovered_devices
         }
 
         return vol.Schema(

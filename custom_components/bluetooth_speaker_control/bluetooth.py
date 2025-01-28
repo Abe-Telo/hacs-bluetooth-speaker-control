@@ -1,23 +1,41 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__) 
 
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
         scanner = async_get_scanner(hass)
         devices = scanner.discovered_devices
-        _LOGGER.debug(f"Discovered devices: {devices}")
-        return [{"name": device.name, "mac": device.address} for device in devices]
+        _LOGGER.debug(f"Discovered devices using Home Assistant Bluetooth API: {devices}")
+
+        device_list = []
+        for device in devices:
+            # Mockup logic to determine device type
+            device_type = "Unknown"
+            if "headphone" in device.name.lower():
+                device_type = "Headphone"
+            elif "music" in device.name.lower():
+                device_type = "Music Player"
+
+            device_list.append({
+                "name": device.name,
+                "mac": device.address,
+                "type": device_type,  # Device type (Headphone, Music Player, etc.)
+            })
+
+        return device_list
+
     except Exception as e:
-        _LOGGER.error(f"Error during Bluetooth discovery: {e}")
+        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
+
 
 def pair_device(mac_address):
     """Simulate pairing with a Bluetooth device."""
     try:
-        # Replace this logic with actual system commands like `bluetoothctl` if needed
+        # Replace this with actual pairing logic
         _LOGGER.debug(f"Simulated pairing with {mac_address}")
         return True
     except Exception as e:
@@ -27,7 +45,7 @@ def pair_device(mac_address):
 def connect_device(mac_address):
     """Simulate connecting to a Bluetooth device."""
     try:
-        # Replace this logic with actual system commands if needed
+        # Replace this with actual connection logic
         _LOGGER.debug(f"Simulated connecting to {mac_address}")
         return True
     except Exception as e:
@@ -37,7 +55,7 @@ def connect_device(mac_address):
 def disconnect_device(mac_address):
     """Simulate disconnecting from a Bluetooth device."""
     try:
-        # Replace this logic with actual system commands if needed
+        # Replace this with actual disconnection logic
         _LOGGER.debug(f"Simulated disconnecting from {mac_address}")
         return True
     except Exception as e:
