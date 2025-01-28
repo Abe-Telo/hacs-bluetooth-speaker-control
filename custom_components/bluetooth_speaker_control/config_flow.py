@@ -113,4 +113,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
 
         return vol.Schema(
-          
+            {
+                vol.Required("device_mac"): vol.In(device_options),
+            }
+        )
