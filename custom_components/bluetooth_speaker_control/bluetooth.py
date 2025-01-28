@@ -13,70 +13,78 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("❌ Bluetooth scanner not available.")
             return []
 
-        # Get discovered devices list
-        devices = scanner.discovered_devices
+        # Check for discovered devices and advertisement data
+        discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
+        if discovered_devices:
+            devices = discovered_devices.values()
+        else:
+            _LOGGER.warning("⚠️ Using fallback: discovered_devices only.")
+            devices = [(device, None) for device in scanner.discovered_devices]
+
         device_list = []
 
         _LOGGER.info(f"🔍 Found {len(devices)} Bluetooth devices.")  # Log number of devices
 
-        for device in devices:
-            # Default values
-            device_type = "Unknown"
-            icon = "🔵"  # Default Bluetooth icon
-            manufacturer = "Unknown"
-            uuids = getattr(device, "service_uuids", [])
-            rssi = getattr(device, "rssi", "Unknown")  # Keeping BLEDevice.rssi for now
-
-            # Use name-based detection to assign type and icons
-            name_lower = device.name.lower() if device.name else ""
-
-            if "headphone" in name_lower:
-                device_type = "Headphone"
-                icon = "🎧"
-            elif "speaker" in name_lower or "music" in name_lower:
-                device_type = "Speaker"
-                icon = "🔊"
-            elif "tv" in name_lower or "display" in name_lower:
-                device_type = "TV"
-                icon = "📺"
-            elif "phone" in name_lower or "mobile" in name_lower:
-                device_type = "Phone"
-                icon = "📱"
-            elif "watch" in name_lower or "wearable" in name_lower:
-                device_type = "Wearable"
-                icon = "⌚"
-            elif "keyboard" in name_lower:
-                device_type = "Keyboard"
-                icon = "⌨️"
-            elif "mouse" in name_lower:
-                device_type = "Mouse"
-                icon = "🖱️"
-
-            # Build the device dictionary
-            device_data = {
-                "name": device.name or "Unknown",
-                "mac": device.address,
-                "type": device_type,
-                "icon": icon,
-                "rssi": rssi,
-                "manufacturer": manufacturer,
-                "uuids": uuids,
-            }
-
-            # Log raw device data in JSON-safe format
+        for device, adv_data in devices:
             try:
-                _LOGGER.info(f"📡 RAW DEVICE DATA:\n{json.dumps(device_data, indent=4)}")
-            except TypeError as e:
-                _LOGGER.warning(f"⚠️ Failed to log raw device data: {e}")
+                # Extract all available attributes from BLEDevice
+                device_attributes = {
+                    "address": getattr(device, "address", "Unknown"),
+                    "name": getattr(device, "name", "Unknown"),
+                    "details": getattr(device, "details", {}),
+                    "id": getattr(device, "id", "Unknown"),
+                    "rssi": getattr(device, "rssi", "Unknown"),  # Deprecated, but used for now
+                    "metadata": getattr(device, "metadata", {}),
+                }
 
-            # Append to device list
-            device_list.append(device_data)
+                # Extract all available attributes from AdvertisementData
+                adv_attributes = {
+                    "local_name": getattr(adv_data, "local_name", "Unknown"),
+                    "manufacturer": getattr(adv_data, "manufacturer", "Unknown"),
+                    "service_uuids": getattr(adv_data, "service_uuids", []),
+                    "service_data": _serialize_bytes(getattr(adv_data, "service_data", {})),
+                    "manufacturer_data": _serialize_bytes(getattr(adv_data, "manufacturer_data", {})),
+                    "rssi": getattr(adv_data, "rssi", getattr(device, "rssi", "Unknown")),
+                    "tx_power": getattr(adv_data, "tx_power", "Unknown"),
+                }
+
+                # Log raw device data in JSON-safe format
+                raw_data_log = {
+                    "BLEDevice": device_attributes,
+                    "AdvertisementData": adv_attributes,
+                }
+                _LOGGER.info(f"📡 RAW DEVICE DATA:\n{json.dumps(raw_data_log, indent=4, default=str)}")
+
+                # Append to device list
+                device_list.append({
+                    "name": device_attributes["name"],
+                    "mac": device_attributes["address"],
+                    "rssi": adv_attributes["rssi"],
+                    "manufacturer": adv_attributes["manufacturer"],
+                    "service_uuids": adv_attributes["service_uuids"],
+                    "service_data": adv_attributes["service_data"],
+                    "manufacturer_data": adv_attributes["manufacturer_data"],
+                    "tx_power": adv_attributes["tx_power"],
+                })
+            except Exception as e:
+                _LOGGER.warning(f"⚠️ Failed to log raw device data: {e}")
 
         return device_list
 
     except Exception as e:
-        _LOGGER.error(f"🔥 Error discovering Bluetooth devices using Home Assistant API: {e}")
+        _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
         return []
+
+def _serialize_bytes(data):
+    """Convert bytearray or bytes to JSON serializable format."""
+    if isinstance(data, (bytes, bytearray)):
+        return list(data)  # Convert bytearray to a list of integers
+    elif isinstance(data, dict):
+        return {key: _serialize_bytes(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_serialize_bytes(item) for item in data]
+    return data
+
 
 
 
