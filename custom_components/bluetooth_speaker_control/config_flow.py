@@ -1,8 +1,8 @@
 from homeassistant import config_entries
 from homeassistant.core import callback
-from .const import DOMAIN, DEFAULT_NAME
+from .const import DOMAIN
 from .bluetooth import discover_bluetooth_devices
-from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, TextSelector, TextSelectorConfig
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -15,75 +15,90 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         self.discovered_devices = []
+        self.selected_device = None
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step: list available devices with a refresh option."""
+        """Handle the initial step: list all devices with a refresh button."""
         if user_input is not None:
-            # Proceed to the next step to configure the selected device
-            selected_device = next(
-                (device for device in self.discovered_devices if device["mac"] == user_input["mac_address"]),
+            # If 'refresh' is clicked, refresh device discovery
+            if user_input.get("refresh") == "refresh":
+                _LOGGER.debug("Refreshing Bluetooth device list.")
+                return await self.async_step_user()
+
+            # User selected a device, proceed to naming step
+            selected_mac = user_input.get("mac_address")
+            self.selected_device = next(
+                (device for device in self.discovered_devices if device["mac"] == selected_mac),
                 None,
             )
-            self.selected_device = selected_device
-            return await self.async_step_set_name()
+            if self.selected_device:
+                return await self.async_step_set_name()
 
-        # Discover devices using Home Assistant's Bluetooth integration
+            # If no valid selection is found, show error
+            _LOGGER.error("Invalid selection. Device not found.")
+            return self.async_show_form(
+                step_id="user",
+                errors={"base": "invalid_selection"},
+                data_schema=self._get_schema(),
+            )
+
+        # Initial device discovery
         self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
         if not self.discovered_devices:
-            _LOGGER.error("No Bluetooth devices found during discovery.")
+            _LOGGER.warning("No Bluetooth devices discovered.")
             return self.async_show_form(
                 step_id="user",
                 errors={"base": "no_devices_found"},
-                data_schema={},
-                description_placeholders={"error": "No devices found. Please try refreshing."},
+                data_schema=self._get_schema(),
             )
 
-        # Display the configuration form with discovered devices
+        # Show the list of discovered devices
         return self.async_show_form(
             step_id="user",
             data_schema=self._get_schema(),
-            description_placeholders={},
         )
 
     async def async_step_set_name(self, user_input=None):
-        """Handle the step where the user sets the name for the selected device."""
+        """Step to ask the user for a name for the selected device."""
         if user_input is not None:
-            # Save the selected device and create the configuration entry
             return self.async_create_entry(
-                title=f"{user_input['device_name']} ({self.selected_device['mac']})",
+                title=user_input["device_name"],
                 data={
                     "device_name": user_input["device_name"],
                     "mac_address": self.selected_device["mac"],
                 },
             )
 
-        # Pre-fill the MAC address for the selected device
+        # Show form for entering the name
         data_schema = {
             "device_name": TextSelector(TextSelectorConfig(type="text")),
-            "mac_address": TextSelector(TextSelectorConfig(type="text")),
+            "mac_address": TextSelector(
+                TextSelectorConfig(type="text", default=self.selected_device["mac"])
+            ),
         }
 
         return self.async_show_form(
             step_id="set_name",
             data_schema=data_schema,
-            description_placeholders={
-                "mac_address": self.selected_device["mac"],
-            },
         )
 
     @callback
     def _get_schema(self):
-        """Generate the schema with discovered devices."""
-        options = {
-            f"{device['name']} ({device['mac']})": device["mac"] for device in self.discovered_devices
-        }
+        """Generate schema for the user step."""
+        from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
 
+        options = {device["mac"]: f"{device['name']} ({device['mac']})" for device in self.discovered_devices}
+
+        # Add a "Refresh" option to the schema
         return {
             "mac_address": SelectSelector(
                 SelectSelectorConfig(
-                    options=list(options.values()),
-                    mode="dropdown"
+                    options=[{"value": k, "label": v} for k, v in options.items()],
+                    mode="dropdown",
                 )
-            )
+            ),
+            "refresh": TextSelector(
+                TextSelectorConfig(type="text", default="refresh")
+            ),
         }
