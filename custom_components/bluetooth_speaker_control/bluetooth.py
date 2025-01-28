@@ -1,91 +1,68 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
-import json
 
-_LOGGER = logging.getLogger(__name__)
-
-def _serialize_bytes(data):
-    """Convert bytearray or bytes to a JSON serializable format."""
-    if isinstance(data, (bytes, bytearray)):
-        return list(data)  # Convert bytearray to a list of integers
-    elif isinstance(data, dict):
-        return {key: _serialize_bytes(value) for key, value in data.items()}
-    elif isinstance(data, list):
-        return [_serialize_bytes(item) for item in data]
-    return data
+_LOGGER = logging.getLogger(__name__) 
 
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
         scanner = async_get_scanner(hass)
         if not scanner:
-            _LOGGER.error("❌ Bluetooth scanner not available.")
+            _LOGGER.error("Bluetooth scanner not available.")
             return []
 
-        discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
-
-        if not discovered_devices:
-            _LOGGER.warning("⚠️ Using fallback: discovered_devices only.")
-            devices = scanner.discovered_devices
-        else:
-            devices = discovered_devices.values()
-
+        devices = scanner.discovered_devices
         device_list = []
 
-        for item in devices:
-            if isinstance(item, tuple):  # If using `discovered_devices_and_advertisement_data`
-                device, adv_data = item
-            else:
-                device, adv_data = item, None  # Fallback if only device is available
+        for device in devices:
+            # Default values
+            device_type = "Unknown"
+            icon = "🔵"  # Default Bluetooth icon
+            manufacturer = "Unknown"
+            rssi = getattr(device, "rssi", "Unknown")
+            uuids = getattr(device, "service_uuids", [])
 
-            # Advertisement attributes
-            adv_attributes = {
-                "local_name": getattr(adv_data, "local_name", "Unknown"),
-                "manufacturer": getattr(adv_data, "manufacturer", "Unknown"),
-                "service_uuids": getattr(adv_data, "service_uuids", []),
-                "service_data": _serialize_bytes(getattr(adv_data, "service_data", {})),
-                "manufacturer_data": _serialize_bytes(getattr(adv_data, "manufacturer_data", {})),
-                "rssi": getattr(adv_data, "rssi", getattr(device, "rssi", "Unknown")),
-                "tx_power": getattr(adv_data, "tx_power", "Unknown"),
-            }
+            # Use name-based detection to assign type and icons
+            name_lower = device.name.lower() if device.name else ""
 
-            # BLEDevice attributes
-            device_attributes = {
-                "address": getattr(device, "address", "Unknown"),
-                "name": getattr(device, "name", adv_attributes["local_name"] or "Unknown"),
-                "details": _serialize_bytes(getattr(device, "details", {})),  # ✅ Convert device details
-                "id": getattr(device, "id", "Unknown"),
-            }
+            if "headphone" in name_lower:
+                device_type = "Headphone"
+                icon = "🎧"
+            elif "speaker" in name_lower or "music" in name_lower:
+                device_type = "Speaker"
+                icon = "🔊"
+            elif "tv" in name_lower or "display" in name_lower:
+                device_type = "TV"
+                icon = "📺"
+            elif "phone" in name_lower or "mobile" in name_lower:
+                device_type = "Phone"
+                icon = "📱"
+            elif "watch" in name_lower or "wearable" in name_lower:
+                device_type = "Wearable"
+                icon = "⌚"
+            elif "keyboard" in name_lower:
+                device_type = "Keyboard"
+                icon = "⌨️"
+            elif "mouse" in name_lower:
+                device_type = "Mouse"
+                icon = "🖱️"
 
-            # **Ensure JSON-safe logging**
-            try:
-                raw_data_log = {
-                    "device": device_attributes,
-                    "advertisement": adv_attributes,
-                }
-                _LOGGER.info(f"📡 RAW DEVICE DATA:\n{json.dumps(raw_data_log, indent=4)}")
-            except Exception as e:
-                _LOGGER.warning(f"⚠️ Failed to log raw data: {e}")
-
-            # Append processed data
+            # Construct device dictionary
             device_list.append({
-                "name": device_attributes["name"],
-                "mac": device_attributes["address"],
-                "type": "Unknown",
-                "rssi": adv_attributes["rssi"],
-                "manufacturer": adv_attributes["manufacturer"],
-                "service_uuids": adv_attributes["service_uuids"],
-                "service_data": adv_attributes["service_data"],
-                "manufacturer_data": adv_attributes["manufacturer_data"],
-                "tx_power": adv_attributes["tx_power"],
+                "name": device.name or "Unknown",
+                "mac": device.address,
+                "type": device_type,
+                "icon": icon,  # Store the correct icon for later use
+                "rssi": rssi,
+                "manufacturer": manufacturer,
+                "uuids": uuids,
             })
 
         return device_list
 
     except Exception as e:
-        _LOGGER.error(f"🔥 Error discovering Bluetooth devices: {e}")
+        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
-
 
 
 
