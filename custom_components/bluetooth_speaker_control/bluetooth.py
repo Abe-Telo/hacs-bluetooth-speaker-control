@@ -8,10 +8,10 @@ async def discover_bluetooth_devices(hass):
     try:
         scanner = async_get_scanner(hass)
         devices = scanner.discovered_devices
-        _LOGGER.debug(f"Discovered devices using Home Assistant Bluetooth API: {devices}")
+        _LOGGER.debug(f"Discovered devices: {devices}")
         return [{"name": device.name, "mac": device.address} for device in devices]
     except Exception as e:
-        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
+        _LOGGER.error(f"Error during Bluetooth discovery: {e}")
         return []
 
 def pair_device(mac_address):

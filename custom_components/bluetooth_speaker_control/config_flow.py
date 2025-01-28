@@ -20,7 +20,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """Handle the initial step: list available devices and add a refresh button."""
         if user_input is not None:
-            # If the refresh button is pressed
+            # Handle refresh action
             if user_input.get("refresh"):
                 _LOGGER.debug("Refreshing the Bluetooth device list.")
                 self.discovered_devices = await discover_bluetooth_devices(self.hass)
@@ -63,7 +63,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
         if user_input is not None:
-            # Create the configuration entry
+            # Save the selected device and create the configuration entry
             return self.async_create_entry(
                 title=user_input["device_name"],
                 data={
