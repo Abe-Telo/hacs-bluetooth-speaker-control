@@ -23,8 +23,10 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         _LOGGER.info("🔍 Starting Bluetooth device discovery (config_flow).")
-        try:
-            self.discovered_devices = await discover_bluetooth_devices(self.hass, timeout=7)  # Increased timeout
+        try: 
+            passive_mode = self.hass.data.get("bluetooth_speaker_control_passive", False)
+            self.discovered_devices = await discover_bluetooth_devices(self.hass, timeout=7, passive_scanning=passive_mode)
+
             _LOGGER.info(f"✅ Discovered devices: {self.discovered_devices}")
         except Exception as e:
             _LOGGER.error(f"🔥 Error during device discovery: {e}")

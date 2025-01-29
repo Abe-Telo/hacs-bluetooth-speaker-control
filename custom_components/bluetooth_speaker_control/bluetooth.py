@@ -8,9 +8,9 @@ from homeassistant.components.bluetooth import (
 
 _LOGGER = logging.getLogger(__name__)
 
-async def discover_bluetooth_devices(hass, timeout=7):
+async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
     """Discover nearby Bluetooth devices."""
-    _LOGGER.info("🔍 Starting Bluetooth scan...")
+    _LOGGER.info(f"🔍 Starting Bluetooth scan (Passive: {passive_scanning})...")
 
     discovered_devices = []
 
@@ -29,11 +29,13 @@ async def discover_bluetooth_devices(hass, timeout=7):
     try:
         _LOGGER.info("📡 Registering Bluetooth scan callback...")
 
+        scan_mode = BluetoothScanningMode.PASSIVE if passive_scanning else BluetoothScanningMode.ACTIVE
+
         stop_scan = async_register_callback(
             hass,
             device_found,
-            match_dict={},  # ✅ Fix: Required parameter added
-            mode=BluetoothScanningMode.ACTIVE
+            match_dict={},  # ✅ Required parameter
+            mode=scan_mode  # ✅ Dynamically switch scanning mode
         )
 
         _LOGGER.info(f"⏳ Waiting {timeout} seconds for scan results...")
@@ -49,6 +51,9 @@ async def discover_bluetooth_devices(hass, timeout=7):
         _LOGGER.warning("⚠️ No Bluetooth devices found.")
 
     return discovered_devices
+
+
+
 
 
 
