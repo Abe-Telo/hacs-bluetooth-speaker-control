@@ -74,6 +74,7 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
 
     return discovered_devices
 
+
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
     
@@ -83,8 +84,8 @@ def _format_device(service_info):
     device_name = (
         getattr(service_info, "name", None)  # ✅ First try service_info.name
         or getattr(service_info, "local_name", None)  # ✅ Sometimes local_name exists
-        or (getattr(service_info, "advertisement", {}).get("local_name") if hasattr(service_info, "advertisement") else None)  # ✅ Check advertisement.local_name
-        or (getattr(service_info, "advertisement", {}).get("manufacturer_name") if hasattr(service_info, "advertisement") else None)  # ✅ Try manufacturer name
+        or (service_info._advertisement.local_name if hasattr(service_info, "_advertisement") and service_info._advertisement else None)  # ✅ Correctly extract advertisement.local_name
+        or (service_info._advertisement.manufacturer_name if hasattr(service_info, "_advertisement") and service_info._advertisement else None)  # ✅ Try manufacturer_name
         or (service_info.address if ":" in service_info.address else "Unknown")  # ✅ Fallback to MAC only if needed
     )
 
@@ -94,6 +95,7 @@ def _format_device(service_info):
         "rssi": getattr(service_info, "rssi", -100),
         "service_uuids": service_info.service_uuids or [],
     }
+
 
 
 
