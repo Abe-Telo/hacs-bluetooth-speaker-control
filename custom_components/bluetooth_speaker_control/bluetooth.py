@@ -9,6 +9,23 @@ from homeassistant.components.bluetooth import (
 
 _LOGGER = logging.getLogger(__name__)
 
+async def scan_bluetooth_devices(hass):
+    """Run both Active and Passive scans and merge results."""
+
+    _LOGGER.info("🔄 Running Active Scan...")
+    active_results = await discover_bluetooth_devices(hass, timeout=10, passive_scanning=False)
+
+    _LOGGER.info("🔄 Running Passive Scan...")
+    passive_results = await discover_bluetooth_devices(hass, timeout=10, passive_scanning=True)
+
+    # Merge both results (avoid duplicates)
+    all_results = {device["mac"]: device for device in active_results + passive_results}
+    
+    _LOGGER.info(f"✅ Final Merged Bluetooth Devices: {list(all_results.values())}")
+
+    return list(all_results.values())  # Convert back to a list
+
+
 async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
     """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
     _LOGGER.info(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
@@ -59,16 +76,16 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
 
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
-      
-    # Debugging: Log available attributes
-    _LOGGER.debug(f"📡 Raw Service Info Attributes: {dir(service_info)}")
     
-    # Try to extract device name from multiple sources
+    _LOGGER.debug(f"📡 Raw Service Info Attributes: {dir(service_info)}")
+
+    # Extract name correctly
     device_name = (
-        getattr(service_info, "name", None)  # First try service_info.name
-        or getattr(service_info, "local_name", None)  # Check local_name
-        or (getattr(service_info, "advertisement", {}).get("local_name", None) if hasattr(service_info, "advertisement") else None)  # Ensure advertisement exists
-        or "Unknown"  # Default fallback
+        getattr(service_info, "name", None)  # ✅ First try service_info.name
+        or getattr(service_info, "local_name", None)  # ✅ Sometimes local_name exists
+        or (getattr(service_info, "advertisement", {}).get("local_name") if hasattr(service_info, "advertisement") else None)  # ✅ Check advertisement.local_name
+        or (getattr(service_info, "advertisement", {}).get("manufacturer_name") if hasattr(service_info, "advertisement") else None)  # ✅ Try manufacturer name
+        or (service_info.address if ":" in service_info.address else "Unknown")  # ✅ Fallback to MAC only if needed
     )
 
     return {
@@ -77,6 +94,7 @@ def _format_device(service_info):
         "rssi": getattr(service_info, "rssi", -100),
         "service_uuids": service_info.service_uuids or [],
     }
+
 
 
 
