@@ -1,5 +1,6 @@
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.const import EVENT_HOMEASSISTANT_START
 from .bluetooth import discover_bluetooth_devices, pair_device, connect_device, disconnect_device
 import logging
 
@@ -50,6 +51,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         """Handle scanning for Bluetooth devices."""
         _LOGGER.info("🔍 Scanning for Bluetooth devices...")
         devices = await discover_bluetooth_devices(hass)
+
         if not devices:
             _LOGGER.warning("⚠️ No Bluetooth devices found during scan.")
         else:
@@ -57,13 +59,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             for device in devices:
                 _LOGGER.info(f"📡 Discovered: {device}")
 
-        hass.states.async_set(f"{DOMAIN}.scan_status", f"Scanned {len(devices)} devices")
+            # Fire event with scan results
+            hass.bus.async_fire("bluetooth_device_discovered", {"devices": devices})
+
+            # Store list of devices in HA state
+            hass.states.async_set(f"{DOMAIN}.device_list", str(devices))
 
     # Register services
     hass.services.async_register(DOMAIN, "pair_speaker", handle_pair_speaker)
     hass.services.async_register(DOMAIN, "connect_speaker", handle_connect_speaker)
     hass.services.async_register(DOMAIN, "disconnect_speaker", handle_disconnect_speaker)
     hass.services.async_register(DOMAIN, "scan_devices", handle_scan_devices)
+
+    # Automatically scan on startup
+    async def startup_scan(event):
+        _LOGGER.info("🔄 Running initial Bluetooth scan on startup...")
+        await handle_scan_devices(ServiceCall(DOMAIN, {}))
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, startup_scan)
 
     return True
 
