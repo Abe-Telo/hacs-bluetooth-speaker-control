@@ -1,15 +1,16 @@
 import logging
 import voluptuous as vol
-import asyncio
 from homeassistant import config_entries
 from homeassistant.core import callback
 from .const import DOMAIN, CONF_MAC_ADDRESS, CONF_NAME
 from .bluetooth import discover_bluetooth_devices
+from homeassistant.helpers.entity_component import async_update_entity
+from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
 _LOGGER = logging.getLogger(__name__)
 
 class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle the Bluetooth Speaker Control configuration flow."""
+    """Handle the configuration flow for Bluetooth Speaker Control."""
 
     VERSION = 1
 
@@ -18,29 +19,22 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.selected_device = None
 
     async def async_step_user(self, user_input=None):
-        """Step to scan for Bluetooth devices and allow selection."""
+        """Handle the first step of the configuration flow."""
         errors = {}
 
-        _LOGGER.info("🔍 Starting Bluetooth discovery in config flow...")
-
-        for attempt in range(3):  # Retry scanning up to 3 times if needed
-            _LOGGER.info(f"🕵️‍♂️ Scan attempt {attempt + 1}...")
-            try:
-                self.discovered_devices = await discover_bluetooth_devices(self.hass, timeout=5)
-                if self.discovered_devices:
-                    _LOGGER.info(f"✅ Found {len(self.discovered_devices)} devices!")
-                    break  # Exit loop if devices are found
-            except Exception as e:
-                _LOGGER.error(f"🔥 Bluetooth scan error: {e}")
-                errors["base"] = "scan_failed"
-
-            await asyncio.sleep(2)  # Short delay before retrying
+        _LOGGER.info("🔍 Starting Bluetooth device discovery (config_flow).")
+        try:
+            self.discovered_devices = await discover_bluetooth_devices(self.hass, timeout=7)  # Increased timeout
+            _LOGGER.info(f"✅ Discovered devices: {self.discovered_devices}")
+        except Exception as e:
+            _LOGGER.error(f"🔥 Error during device discovery: {e}")
+            errors["base"] = "discovery_failed"
 
         if user_input:
             selected_mac = user_input.get(CONF_MAC_ADDRESS)
 
             if not selected_mac or selected_mac == "none":
-                _LOGGER.error("❌ No device selected.")
+                _LOGGER.error("❌ Invalid selection: No device selected.")
                 errors["base"] = "invalid_selection"
             else:
                 self.selected_device = next(
@@ -48,14 +42,14 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     None,
                 )
                 if self.selected_device:
-                    _LOGGER.info(f"🟢 Selected device: {self.selected_device}")
+                    _LOGGER.info(f"🟢 Selected Bluetooth Device: {self.selected_device}")
                     return await self.async_step_set_name()
                 else:
-                    _LOGGER.error(f"❌ Selected MAC {selected_mac} not found in scan results.")
+                    _LOGGER.error(f"❌ Selected MAC address {selected_mac} not found in discovered devices.")
                     errors["base"] = "device_not_found"
 
         if not self.discovered_devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices discovered.")
+            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are powered on and in range.")
             errors["base"] = "no_devices_found"
 
         return self.async_show_form(
@@ -65,29 +59,38 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_set_name(self, user_input=None):
-        """Step to set the name for the selected device."""
+        """Handle the step where the user names the selected device."""
         if user_input:
-            _LOGGER.info(f"✅ Saving device with name: {user_input[CONF_NAME]}")
+            _LOGGER.info(f"✅ Saving device with nickname: {user_input[CONF_NAME]}")
+
             return self.async_create_entry(
                 title=user_input[CONF_NAME],
                 data=self.selected_device,
             )
 
-        device_name = self.selected_device.get("name", "Unknown")
-        device_mac = self.selected_device.get("mac", "Unknown")
+        try:
+            device_details = (
+                f"**Device Information**\n\n"
+                f"🔹 **Name:** {self.selected_device.get('name', 'Unknown')}\n"
+                f"🔹 **MAC Address:** `{self.selected_device.get('mac', 'Unknown')}`\n"
+                f"🔹 **RSSI:** `{self.selected_device.get('rssi', 'Unknown')} dBm`\n"
+                f"🔹 **Service UUIDs:** `{', '.join(self.selected_device.get('service_uuids', ['None']))}`\n"
+            )
+        except Exception as e:
+            _LOGGER.error(f"⚠️ Error extracting device details: {e}")
+            return self.async_abort(reason="device_details_error")
 
         return self.async_show_form(
             step_id="set_name",
             data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_NAME, default=f"{device_name} ({device_mac})"): str,
-                }
+                {vol.Required(CONF_NAME, default=self.selected_device["name"]): str}
             ),
+            description_placeholders={"device_details": device_details},
         )
 
     @callback
     def _get_device_schema(self, no_devices=False):
-        """Generate the schema for discovered devices."""
+        """Generate the schema for the list of devices."""
         if no_devices:
             return vol.Schema(
                 {
@@ -98,12 +101,8 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         device_options = {
-            device["mac"]: f"{device['name']} ({device['mac']}) | RSSI: {device['rssi']} dBm"
+            device["mac"]: f"{device['name']} ({device['mac']}) {device['rssi']} dBm"
             for device in self.discovered_devices
         }
 
-        return vol.Schema(
-            {
-                vol.Required(CONF_MAC_ADDRESS): vol.In(device_options),
-            }
-        )
+        return vol.Schema({vol.Required(CONF_MAC_ADDRESS): vol.In(device_options)})

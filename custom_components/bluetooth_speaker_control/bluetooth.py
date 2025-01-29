@@ -8,7 +8,7 @@ from homeassistant.components.bluetooth import (
 
 _LOGGER = logging.getLogger(__name__)
 
-async def discover_bluetooth_devices(hass, timeout=5):
+async def discover_bluetooth_devices(hass, timeout=7):
     """Discover nearby Bluetooth devices."""
     _LOGGER.info("🔍 Starting Bluetooth scan...")
 
@@ -32,11 +32,12 @@ async def discover_bluetooth_devices(hass, timeout=5):
         stop_scan = async_register_callback(
             hass,
             device_found,
-            BluetoothScanningMode.ACTIVE  # ✅ Fix: Correct parameter placement
+            match_dict={},  # ✅ Fix: Required parameter added
+            mode=BluetoothScanningMode.ACTIVE
         )
 
         _LOGGER.info(f"⏳ Waiting {timeout} seconds for scan results...")
-        await asyncio.sleep(timeout)  # ✅ Instead of improperly using async_add_executor_job
+        await asyncio.sleep(timeout)  # ✅ Wait for scan to complete
 
         _LOGGER.info("🛑 Stopping Bluetooth scan...")
         stop_scan()  # ✅ Properly stopping scan
@@ -48,6 +49,7 @@ async def discover_bluetooth_devices(hass, timeout=5):
         _LOGGER.warning("⚠️ No Bluetooth devices found.")
 
     return discovered_devices
+
 
 
 ### **🔹 Extract Advertisement Data Properly**
