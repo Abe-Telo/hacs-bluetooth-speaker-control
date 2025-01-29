@@ -2,12 +2,9 @@ import logging
 import voluptuous as vol
 import asyncio
 from homeassistant import config_entries
-from homeassistant.core import callback, ServiceCall
-from homeassistant.helpers.entity_component import async_update_entity
-from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
+from homeassistant.core import callback
 from .const import DOMAIN, CONF_MAC_ADDRESS, CONF_NAME
 from .bluetooth import discover_bluetooth_devices
-from .media_player import BluetoothSpeaker
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,47 +16,34 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         self.discovered_devices = []
         self.selected_device = None
-        self.passive_scanning = None
 
     async def async_step_user(self, user_input=None):
         """Handle the first step of the configuration flow."""
         errors = {}
 
-        _LOGGER.info("🔍 Starting Bluetooth device discovery (config_flow).")
-
-        # Introduce a delay before scanning to improve results
-        _LOGGER.info("⏳ Waiting 5 seconds before scanning...")
-        await asyncio.sleep(5)
-
         try:
+            _LOGGER.info("🔍 Starting Bluetooth device discovery (config_flow).")
+
+            # Introduce a delay before scanning to improve results
+            _LOGGER.info("⏳ Waiting 5 seconds before scanning...")
+            await asyncio.sleep(5)
+
             self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
-            # Detect if Passive Scanning is ON or OFF
-            if any(device.get("rssi") != -100 for device in self.discovered_devices):
-                self.passive_scanning = True
-                _LOGGER.info("🟢 Passive Scanning is ON. Using advertisement data.")
-            else:
-                self.passive_scanning = False
-                _LOGGER.warning("⚠️ Passive Scanning is OFF. Using fallback scanning.")
+            if not self.discovered_devices:
+                _LOGGER.warning("⚠️ No Bluetooth devices found. Retrying scan in 5 seconds...")
+                await asyncio.sleep(5)
+                self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
-            _LOGGER.info(f"✅ Discovered devices: {self.discovered_devices}")
+            if not self.discovered_devices:
+                _LOGGER.error("❌ No Bluetooth devices found after retry.")
+                errors["base"] = "no_devices_found"
+
         except Exception as e:
-            _LOGGER.error(f"🔥 Error during device discovery: {e}")
+            _LOGGER.error(f"🔥 Error during device discovery: {e}", exc_info=True)
             errors["base"] = "discovery_failed"
 
-        # If no devices are found, retry the scan after 5 seconds before failing
-        if not self.discovered_devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Retrying in 5 seconds...")
-            await asyncio.sleep(5)
-            try:
-                self.discovered_devices = await discover_bluetooth_devices(self.hass)
-            except Exception as e:
-                _LOGGER.error(f"🔥 Second scan failed: {e}")
-                errors["base"] = "scan_retry_failed"
-
-        if not self.discovered_devices:
-            _LOGGER.error("❌ No Bluetooth devices found after retry. Aborting scan.")
-            errors["base"] = "no_devices_found"
+        if errors:
             return self.async_show_form(
                 step_id="user",
                 data_schema=self._get_device_schema(no_devices=True),
@@ -85,8 +69,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     _LOGGER.error(f"❌ Selected MAC address {selected_mac} not found in discovered devices.")
                     errors["base"] = "device_not_found"
 
-        _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
-
         return self.async_show_form(
             step_id="user",
             data_schema=self._get_device_schema(),
@@ -95,39 +77,20 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_set_name(self, user_input=None):
         """Handle the step where the user names the selected device."""
+        if not self.selected_device:
+            _LOGGER.error("❌ No selected device found. Restarting flow.")
+            return await self.async_step_user()
+
         if user_input:
             _LOGGER.info(f"✅ Saving device with nickname: {user_input[CONF_NAME]}")
-
-            # Create a new entity for the media player
-            await self._create_media_player_entity(self.selected_device, user_input[CONF_NAME])
 
             return self.async_create_entry(
                 title=user_input[CONF_NAME],
                 data=self.selected_device,
             )
 
-        # Extract device details
-        try:
-            device_name = self.selected_device.get("name", "Unknown")
-            device_mac = self.selected_device.get("mac", "Unknown")
-            device_rssi = self.selected_device.get("rssi", "Unknown")
-            device_type = self.selected_device.get("type", "Unknown")
-            device_icon = self.selected_device.get("icon", "🔵")
-            device_uuids = self.selected_device.get("service_uuids", ["None"])
-        except Exception as e:
-            _LOGGER.error(f"⚠️ Error extracting device details: {e}")
-            return self.async_abort(reason="device_details_error")
-
-        device_details = (
-            f"**Device Information**\n\n"
-            f"🔹 **Name:** {device_name}\n"
-            f"{device_icon} **Type:** {device_type}\n"
-            f"🔹 **MAC Address:** `{device_mac}`\n"
-            f"🔹 **RSSI:** `{device_rssi} dBm`\n"
-            f"🔹 **Service UUIDs:** `{', '.join(device_uuids)}`\n"
-        )
-
-        _LOGGER.info(f"🔵 Device Details: {device_details}")
+        device_name = self.selected_device.get("name", "Unknown")
+        device_mac = self.selected_device.get("mac", "Unknown")
 
         default_nickname = f"{device_name} ({device_mac})"
 
@@ -140,7 +103,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="set_name",
             data_schema=data_schema,
-            description_placeholders={"device_details": device_details},
         )
 
     @callback
@@ -156,7 +118,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         device_options = {
-            device["mac"]: f"{device['icon']} {device['type']} | {device['name']} ({device['mac']}) {device['rssi']} dBm"
+            device["mac"]: f"{device['name']} ({device['mac']})"
             for device in self.discovered_devices
         }
 
