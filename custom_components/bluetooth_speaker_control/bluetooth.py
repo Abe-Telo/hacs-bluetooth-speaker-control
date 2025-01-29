@@ -15,42 +15,49 @@ async def discover_bluetooth_devices(hass):
             _LOGGER.error("❌ Bluetooth scanner is unavailable. Ensure the Bluetooth integration is set up correctly.")
             return []
 
-        # Attempt to use the preferred discovery method first
+        # --- SCENARIO 1: Passive Scanning ON ---
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
         
-        if not discovered_devices:
-            _LOGGER.warning("⚠️ No advertisement data found. Using fallback to scanner.discovered_devices.")
-            discovered_devices = {
-                device: {"rssi": -100} for device in scanner.discovered_devices  # Assign default RSSI value
-            }
+        if discovered_devices:
+            _LOGGER.info("🟢 Passive Scanning is ON. Using advertisement data.")
+            return _process_discovered_devices(discovered_devices)
+        
+        # --- SCENARIO 2: Passive Scanning OFF ---
+        _LOGGER.warning("⚠️ Passive Scanning is OFF. Using fallback scanner.discovered_devices.")
 
-        if not discovered_devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are in discoverable mode and within range.")
-            return []
+        discovered_devices = {device: {"rssi": -100} for device in scanner.discovered_devices}  # Assign default RSSI
+        if discovered_devices:
+            _LOGGER.info("✅ Devices found using fallback scanning.")
+            return _process_discovered_devices(discovered_devices)
 
-        device_list = []
-        _LOGGER.info(f"✅ Found {len(discovered_devices)} Bluetooth devices.")
-
-        for device, adv_data in discovered_devices.items():
-            try:
-                # Extract advertisement data and device details
-                device_data = {
-                    **extract_ble_device(device),
-                    **extract_adv_data(adv_data),
-                }
-                device_list.append(device_data)
-
-                # Log discovered device for debugging
-                _LOGGER.debug("📡 Device discovered: %s", json.dumps(device_data, indent=4))
-
-            except Exception as e:
-                _LOGGER.error(f"⚠️ Error processing device {device}: {e}")
-
-        return device_list
+        _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are in discoverable mode and within range.")
+        return []
 
     except Exception as e:
         _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
         return []
+
+def _process_discovered_devices(discovered_devices):
+    """Processes and formats discovered Bluetooth devices."""
+    device_list = []
+    _LOGGER.info(f"✅ Found {len(discovered_devices)} Bluetooth devices.")
+
+    for device, adv_data in discovered_devices.items():
+        try:
+            # Extract advertisement data and device details
+            device_data = {
+                **extract_ble_device(device),
+                **extract_adv_data(adv_data),
+            }
+            device_list.append(device_data)
+
+            # Log discovered device for debugging
+            _LOGGER.debug("📡 Device discovered: %s", json.dumps(device_data, indent=4))
+
+        except Exception as e:
+            _LOGGER.error(f"⚠️ Error processing device {device}: {e}")
+
+    return device_list
 
 def extract_adv_data(adv_data):
     """Extract attributes from AdvertisementData safely."""
@@ -94,12 +101,9 @@ def _serialize_bytes(data):
         return [_serialize_bytes(item) for item in data]
     return data
 
-# --- 🔗 Real Pairing, Connecting, Disconnecting using Bleak ---
-
 def pair_device(mac_address):
     """Simulate pairing with a Bluetooth device."""
     try:
-        # Replace this with actual pairing logic
         _LOGGER.debug(f"Simulated pairing with {mac_address}")
         return True
     except Exception as e:
@@ -109,7 +113,6 @@ def pair_device(mac_address):
 def connect_device(mac_address):
     """Simulate connecting to a Bluetooth device."""
     try:
-        # Replace this with actual connection logic
         _LOGGER.debug(f"Simulated connecting to {mac_address}")
         return True
     except Exception as e:
@@ -119,7 +122,6 @@ def connect_device(mac_address):
 def disconnect_device(mac_address):
     """Simulate disconnecting from a Bluetooth device."""
     try:
-        # Replace this with actual disconnection logic
         _LOGGER.debug(f"Simulated disconnecting from {mac_address}")
         return True
     except Exception as e:
