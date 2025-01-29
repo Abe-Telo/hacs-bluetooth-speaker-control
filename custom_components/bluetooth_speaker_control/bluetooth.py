@@ -16,6 +16,47 @@ from homeassistant.components.bluetooth import (
 
 _LOGGER = logging.getLogger(__name__)
 
+CACHE_FILE = "manufacturer_cache.json"
+
+BLUETOOTH_SIG_COMPANIES = {
+    6: "Microsoft",
+    76: "Apple, Inc.",
+    89: "Garmin International, Inc.",
+    117: "Google",
+    152: "Samsung Electronics Co. Ltd.",
+    4096: "Sony Corporation",
+    4961: "Bose Corporation",
+    1177: "Logitech Inc.",
+    3052: "Fitbit, Inc.",
+    6171: "Meta Platforms, Inc.",
+}
+
+MANUFACTURER_CACHE = {}
+
+def _format_device(service_info):
+    """Extract relevant details from the discovered service info."""
+    _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
+    
+    device_name = (
+        service_info.name or  
+        (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None) or  
+        service_info.address  
+    )
+    
+    manufacturer_data = service_info.manufacturer_data
+    manufacturer_id = next(iter(manufacturer_data), None)
+    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
+    
+    _LOGGER.info(f"🆔 Discovered Device: Name='{device_name}', Manufacturer='{manufacturer}', MAC='{service_info.address}'")
+    
+    return {
+        "name": device_name,
+        "manufacturer": manufacturer,
+        "mac_address": service_info.address,
+        "rssi": service_info.rssi,
+        "service_uuids": service_info.service_uuids,
+    }
+
 async def scan_bluetooth_devices(hass):
     """Run both Active and Passive scans and merge results."""
     _LOGGER.debug("🔄 Running Active Scan...")
@@ -65,47 +106,6 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
 
     return discovered_devices
 
-CACHE_FILE = "manufacturer_cache.json"
-
-BLUETOOTH_SIG_COMPANIES = {
-    6: "Microsoft",
-    76: "Apple, Inc.",
-    89: "Garmin International, Inc.",
-    117: "Google",
-    152: "Samsung Electronics Co. Ltd.",
-    4096: "Sony Corporation",
-    4961: "Bose Corporation",
-    1177: "Logitech Inc.",
-    3052: "Fitbit, Inc.",
-    6171: "Meta Platforms, Inc.",
-}
-
-MANUFACTURER_CACHE = {}
-
-def _format_device(service_info):
-    """Extract relevant details from the discovered service info."""
-    _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
-    
-    device_name = (
-        service_info.name or  
-        (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None) or  
-        service_info.address  
-    )
-    
-    manufacturer_data = service_info.manufacturer_data
-    manufacturer_id = next(iter(manufacturer_data), None)
-    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
-    
-    _LOGGER.info(f"🆔 Discovered Device: Name='{device_name}', Manufacturer='{manufacturer}', MAC='{service_info.address}'")
-    
-    return {
-        "name": device_name,
-        "manufacturer": manufacturer,
-        "mac_address": service_info.address,
-        "rssi": service_info.rssi,
-        "service_uuids": service_info.service_uuids,
-    }
-
 def load_manufacturer_cache():
     """Load manufacturer cache from a JSON file."""
     if os.path.exists(CACHE_FILE):
@@ -143,6 +143,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         clear_manufacturer_cache()
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
+
 
 
 
