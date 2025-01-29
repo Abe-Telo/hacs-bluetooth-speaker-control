@@ -77,18 +77,20 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
 
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
-    
-    _LOGGER.debug(f"📡 Raw Service Info Attributes: {dir(service_info)}")
+
+    # Log everything inside service_info to check available attributes
+    _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
 
     # Extract name correctly
     device_name = (
         service_info.name  # ✅ First try the built-in name
-        or (service_info._advertisement.local_name if hasattr(service_info, "_advertisement") and service_info._advertisement else None)  # ✅ Correctly extract local_name
-        or (service_info._advertisement.manufacturer_name if hasattr(service_info, "_advertisement") and service_info._advertisement else None)  # ✅ Try manufacturer_name
+        or (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None)  # ✅ Correctly extract local_name
+        or (service_info.advertisement.manufacturer_name if hasattr(service_info, "advertisement") and service_info.advertisement else None)  # ✅ Try manufacturer_name
+        or (service_info.manufacturer if hasattr(service_info, "manufacturer") and service_info.manufacturer else None)  # ✅ Manufacturer as last fallback
         or (service_info.address if ":" in service_info.address else "Unknown")  # ✅ Fallback to MAC only if needed
     )
 
-    # Log the extracted device name to confirm
+    # Log the extracted device name for debugging
     _LOGGER.info(f"🔍 Extracted Device Name: {device_name} for {service_info.address}")
 
     return {
@@ -97,6 +99,7 @@ def _format_device(service_info):
         "rssi": getattr(service_info, "rssi", -100),
         "service_uuids": service_info.service_uuids or [],
     }
+
 
 
 
