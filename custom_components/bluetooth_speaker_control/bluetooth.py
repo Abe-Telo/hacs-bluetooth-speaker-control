@@ -21,11 +21,11 @@ async def discover_bluetooth_devices(hass):
         if discovered_devices:
             _LOGGER.info("🟢 Passive Scanning is ON. Using advertisement data.")
             return _process_discovered_devices(discovered_devices)
-        
-        # --- SCENARIO 2: Passive Scanning OFF ---
+
+        # --- SCENARIO 2: Passive Scanning OFF (Confirmed Working) ---
         _LOGGER.warning("⚠️ Passive Scanning is OFF. Using fallback scanner.discovered_devices.")
 
-        discovered_devices = {device: {"rssi": -100} for device in scanner.discovered_devices}  # Assign default RSSI
+        discovered_devices = {device: {"rssi": -100} for device in scanner.discovered_devices}
         if discovered_devices:
             _LOGGER.info("✅ Devices found using fallback scanning.")
             return _process_discovered_devices(discovered_devices)
@@ -44,14 +44,12 @@ def _process_discovered_devices(discovered_devices):
 
     for device, adv_data in discovered_devices.items():
         try:
-            # Extract advertisement data and device details
             device_data = {
                 **extract_ble_device(device),
                 **extract_adv_data(adv_data),
             }
             device_list.append(device_data)
 
-            # Log discovered device for debugging
             _LOGGER.debug("📡 Device discovered: %s", json.dumps(device_data, indent=4))
 
         except Exception as e:
@@ -68,7 +66,7 @@ def extract_adv_data(adv_data):
             "service_uuids": [],
             "service_data": {},
             "manufacturer_data": {},
-            "rssi": -100,  # Dummy RSSI value
+            "rssi": -100,
             "tx_power": "Unknown",
         }
 
@@ -78,7 +76,7 @@ def extract_adv_data(adv_data):
         "service_uuids": getattr(adv_data, "service_uuids", []),
         "service_data": _serialize_bytes(getattr(adv_data, "service_data", {})),
         "manufacturer_data": _serialize_bytes(getattr(adv_data, "manufacturer_data", {})),
-        "rssi": getattr(adv_data, "rssi", -100),  # Use RSSI from AdvertisementData
+        "rssi": getattr(adv_data, "rssi", -100),
         "tx_power": getattr(adv_data, "tx_power", "Unknown"),
     }
 
@@ -94,7 +92,7 @@ def extract_ble_device(device):
 def _serialize_bytes(data):
     """Convert bytearray or bytes to JSON serializable format."""
     if isinstance(data, (bytes, bytearray)):
-        return list(data)  # Convert bytearray to a list of integers
+        return list(data)
     elif isinstance(data, dict):
         return {key: _serialize_bytes(value) for key, value in data.items()}
     elif isinstance(data, list):
