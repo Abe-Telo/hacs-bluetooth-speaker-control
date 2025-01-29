@@ -185,6 +185,9 @@ def pair_device(mac_address):
         _LOGGER.error(f"Error pairing with {mac_address}: {e}")
         return False
 
+
+
+
 def connect_device(mac_address):
     """Simulate connecting to a Bluetooth device."""
     try:
@@ -194,6 +197,9 @@ def connect_device(mac_address):
     except Exception as e:
         _LOGGER.error(f"Error connecting to {mac_address}: {e}")
         return False
+
+
+
 
 def disconnect_device(mac_address):
     """Simulate disconnecting from a Bluetooth device."""
