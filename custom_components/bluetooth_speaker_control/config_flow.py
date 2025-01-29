@@ -1,5 +1,6 @@
 import logging
 import voluptuous as vol
+import asyncio
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers.entity_component import async_update_entity
@@ -25,6 +26,10 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         _LOGGER.info("🔍 Starting Bluetooth device discovery (config_flow).")
+        
+        # Introduce a delay before scanning to improve results
+        _LOGGER.info("⏳ Waiting 5 seconds before scanning...")
+        await asyncio.sleep(5)
 
         try:
             self.discovered_devices = await discover_bluetooth_devices(self.hass)
@@ -42,9 +47,14 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.error(f"🔥 Error during device discovery: {e}")
             errors["base"] = "discovery_failed"
 
-        # Ensure we do not proceed if no devices are found
+        # If no devices are found, retry the scan after 5 seconds before failing
         if not self.discovered_devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are powered on and in range.")
+            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Retrying in 5 seconds...")
+            await asyncio.sleep(5)
+            self.discovered_devices = await discover_bluetooth_devices(self.hass)
+        
+        if not self.discovered_devices:
+            _LOGGER.error("❌ No Bluetooth devices found after retry. Aborting scan.")
             errors["base"] = "no_devices_found"
             return self.async_show_form(
                 step_id="user",
@@ -128,21 +138,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=data_schema,
             description_placeholders={"device_details": device_details},
         )
-
-    async def _create_media_player_entity(self, device, name):
-        """Create a media player entity for the discovered Bluetooth speaker."""
-        _LOGGER.info(f"🎵 Adding {name} as a media player entity.")
-
-        entity_registry = async_get_entity_registry(self.hass)
-        entity_id = f"media_player.{name.lower().replace(' ', '_')}"
-
-        if entity_id not in entity_registry.entities:
-            speaker_entity = BluetoothSpeaker(name, device["mac"])
-            self.hass.add_job(self.hass.states.async_set(entity_id, speaker_entity))
-            await async_update_entity(self.hass, entity_id)
-            _LOGGER.info(f"✅ Media player entity {entity_id} created.")
-        else:
-            _LOGGER.warning(f"⚠️ Media player entity {entity_id} already exists.")
 
     @callback
     def _get_device_schema(self, no_devices=False):
