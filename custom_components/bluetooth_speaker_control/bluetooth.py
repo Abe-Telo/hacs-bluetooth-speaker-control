@@ -1,35 +1,31 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
 import json
-import asyncio
-from bleak import BleakClient, BleakScanner, BleakError
 
 _LOGGER = logging.getLogger(__name__)
 
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
-        _LOGGER.info("🔍 Starting Bluetooth device discovery...")
-
         # Get the Bluetooth scanner
         scanner = async_get_scanner(hass)
         if not scanner:
-            _LOGGER.error("❌ Bluetooth scanner is unavailable. Ensure the Bluetooth integration is set up correctly.")
+            _LOGGER.error("❌ Bluetooth scanner unavailable. Ensure the Bluetooth integration is set up correctly.")
             return []
 
         # Attempt to use discovered_devices_and_advertisement_data if available
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
 
         if not discovered_devices:
-            _LOGGER.warning("⚠️ Using fallback to scanner.discovered_devices.")
+            _LOGGER.warning("⚠️ No advertisement data found. Using fallback to scanner.discovered_devices.")
             discovered_devices = {
-                device: {"rssi": getattr(device, "rssi", -100)}
-                for device in scanner.discovered_devices
+                device: {"rssi": getattr(device, "rssi", -100)}  # Add at least RSSI
+                for device in getattr(scanner, "discovered_devices", [])
             }
 
         if not discovered_devices:
             _LOGGER.warning(
-                "⚠️ No devices discovered. Ensure devices are in discoverable mode and within range of the Bluetooth adapter."
+                "⚠️ No Bluetooth devices discovered. Ensure devices are in discoverable mode and within range."
             )
             return []
 
@@ -39,6 +35,7 @@ async def discover_bluetooth_devices(hass):
 
         for device, adv_data in discovered_devices.items():
             try:
+                # Process the device and advertisement data
                 device_data = {
                     **extract_ble_device(device),
                     **extract_adv_data(adv_data),
@@ -57,6 +54,7 @@ async def discover_bluetooth_devices(hass):
         _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
         return []
 
+
 def extract_adv_data(adv_data):
     """Extract attributes from AdvertisementData safely."""
     if adv_data is None:
@@ -66,7 +64,7 @@ def extract_adv_data(adv_data):
             "service_uuids": [],
             "service_data": {},
             "manufacturer_data": {},
-            "rssi": -100,
+            "rssi": -100,  # Dummy RSSI value
             "tx_power": "Unknown",
         }
 
@@ -76,9 +74,10 @@ def extract_adv_data(adv_data):
         "service_uuids": getattr(adv_data, "service_uuids", []),
         "service_data": _serialize_bytes(getattr(adv_data, "service_data", {})),
         "manufacturer_data": _serialize_bytes(getattr(adv_data, "manufacturer_data", {})),
-        "rssi": getattr(adv_data, "rssi", -100),
+        "rssi": getattr(adv_data, "rssi", -100),  # Use RSSI from AdvertisementData
         "tx_power": getattr(adv_data, "tx_power", "Unknown"),
     }
+
 
 def extract_ble_device(device):
     """Extract attributes from BLEDevice safely."""
@@ -89,15 +88,21 @@ def extract_ble_device(device):
         "id": getattr(device, "id", "Unknown"),
     }
 
+
 def _serialize_bytes(data):
     """Convert bytearray or bytes to JSON serializable format."""
     if isinstance(data, (bytes, bytearray)):
-        return list(data)
+        return list(data)  # Convert bytearray to a list of integers
     elif isinstance(data, dict):
         return {key: _serialize_bytes(value) for key, value in data.items()}
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
+
+
+
+
+
 
 # --- 🔗 Real Pairing, Connecting, Disconnecting using Bleak ---
 
