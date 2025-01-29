@@ -2,6 +2,7 @@ import logging
 import asyncio
 from homeassistant.components.bluetooth import (
     async_register_callback,
+    async_discovered_service_info,   
     BluetoothScanningMode,
     BluetoothChange,
 )
@@ -9,28 +10,26 @@ from homeassistant.components.bluetooth import (
 _LOGGER = logging.getLogger(__name__)
 
 async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
-    """Discover nearby Bluetooth devices."""
-    _LOGGER.info(f"🔍 Starting Bluetooth scan (Passive: {passive_scanning})...")
+    """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
+    _LOGGER.info(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
 
     discovered_devices = []
 
+    # ✅ Fetch already discovered Bluetooth devices
+    for service_info in async_discovered_service_info(hass):
+        discovered_devices.append(_format_device(service_info))
+
+    # ✅ If devices were already discovered, return them immediately
+    if discovered_devices:
+        _LOGGER.info(f"✅ Found {len(discovered_devices)} devices before scanning: {discovered_devices}")
+        return discovered_devices
+
     def device_found(service_info, change: BluetoothChange):
-        """Callback when a device is found."""
-        
-        device_name = (
-            getattr(service_info, "name", None)
-            or getattr(service_info.advertisement, "local_name", None)
-            or "Unknown"
-        )
-        device = {
-            "name": device_name,
-            "mac": service_info.address,
-            "rssi": getattr(service_info, "rssi", -100),
-            "service_uuids": service_info.service_uuids or [],
-        }
-        _LOGGER.info(f"📡 Found Bluetooth device: {device}")
+        """Callback when a device is found in real-time."""
+        device = _format_device(service_info)
         if device not in discovered_devices:
             discovered_devices.append(device)
+            _LOGGER.info(f"📡 Found Bluetooth device: {device}")
 
     try:
         _LOGGER.info("📡 Registering Bluetooth scan callback...")
@@ -57,6 +56,16 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
         _LOGGER.warning("⚠️ No Bluetooth devices found.")
 
     return discovered_devices
+
+def _format_device(service_info):
+    """Extract relevant details from the discovered service info."""
+    return {
+        "name": service_info.name or "Unknown",
+        "mac": service_info.address,
+        "rssi": getattr(service_info, "rssi", -100),
+        "service_uuids": service_info.service_uuids or [],
+    }
+
 
 
 
