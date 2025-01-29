@@ -13,7 +13,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async def send_notification(title, message):
         """Send a persistent notification to Home Assistant UI."""
-        await hass.services.async_call(  # ✅ Fixed missing 'await'
+        await hass.services.async_call(  # ✅ FIXED: Await is required
             "persistent_notification",
             "create",
             {"title": title, "message": message, "notification_id": f"{DOMAIN}_notification"},
