@@ -1,32 +1,58 @@
 # Service to pair a Bluetooth speaker
 pair_speaker:
   name: "Pair Bluetooth Speaker"
-  description: "Pair a Bluetooth speaker with the system."
+  description: "Attempts to pair a Bluetooth speaker using its MAC address."
   fields:
     mac_address:
-      description: "The MAC address of the Bluetooth speaker to pair."
+      required: true
       example: "00:1A:7D:DA:71:13"
+      selector:
+        text:
 
 connect_speaker:
-  name: "Connect Bluetooth Speaker"
-  description: "Connect to a paired Bluetooth speaker."
+  name: "Connect to Bluetooth Speaker"
+  description: "Connects to a paired Bluetooth speaker."
   fields:
     mac_address:
-      description: "The MAC address of the Bluetooth speaker to connect to."
+      required: true
       example: "00:1A:7D:DA:71:13"
+      selector:
+        text:
 
 disconnect_speaker:
-  name: "Disconnect Bluetooth Speaker"
-  description: "Disconnect from a currently connected Bluetooth speaker."
+  name: "Disconnect from Bluetooth Speaker"
+  description: "Disconnects from a connected Bluetooth speaker."
   fields:
     mac_address:
-      description: "The MAC address of the Bluetooth speaker to disconnect."
+      required: true
       example: "00:1A:7D:DA:71:13"
+      selector:
+        text:
 
 scan_devices:
   name: "Scan for Bluetooth Devices"
-  description: "Trigger a Bluetooth scan to find nearby devices."
-  fields: {}
+  description: "Initiates a scan for discoverable Bluetooth devices."
+  fields:
+    scan_duration:
+      required: false
+      default: 15
+      example: 10
+      selector:
+        number:
+          min: 5
+          max: 60
+          step: 1
+          unit_of_measurement: "seconds"
+
+reconnect_speaker:
+  name: "Reconnect to Last Connected Speaker"
+  description: "Attempts to reconnect to the last paired and connected Bluetooth speaker."
+  fields:
+    mac_address:
+      required: false
+      example: "00:1A:7D:DA:71:13"
+      selector:
+        text:
 
 debug_scan:
   name: "Debug Bluetooth Scan"
@@ -37,3 +63,7 @@ notify_discovery:
   name: "Notify Device Discovery"
   description: "Send a persistent notification with the results of a Bluetooth scan."
   fields: {}
+
+reset_bluetooth:
+  name: "Reset Bluetooth Adapter"
+  description: "Attempts to reset the Bluetooth adapter and clear any connection issues."
