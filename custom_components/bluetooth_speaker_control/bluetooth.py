@@ -59,7 +59,7 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
 
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
-    
+      
     # Debugging: Log available attributes
     _LOGGER.debug(f"📡 Raw Service Info Attributes: {dir(service_info)}")
     
