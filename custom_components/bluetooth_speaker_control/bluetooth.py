@@ -1,6 +1,5 @@
 import logging
 from homeassistant.components.bluetooth import (
-    async_get_advertisement_callback,
     async_register_callback,
     BluetoothScanningMode,
     BluetoothChange,
@@ -14,7 +13,7 @@ async def discover_bluetooth_devices(hass, timeout=5):
 
     discovered_devices = []
 
-    def device_found(service_info: BluetoothChange, change):
+    def device_found(service_info, change: BluetoothChange):
         """Callback when a device is found."""
         device = {
             "name": service_info.name or "Unknown",
@@ -31,7 +30,7 @@ async def discover_bluetooth_devices(hass, timeout=5):
         stop_scan = async_register_callback(
             hass,
             device_found,
-            mode=BluetoothScanningMode.ACTIVE,  # Fix: Provide mode parameter
+            mode=BluetoothScanningMode.ACTIVE  # Fix: Provide mode parameter
         )
 
         _LOGGER.info(f"⏳ Waiting {timeout} seconds for scan results...")
@@ -44,6 +43,7 @@ async def discover_bluetooth_devices(hass, timeout=5):
         _LOGGER.warning("⚠️ No Bluetooth devices found.")
 
     return discovered_devices
+
 
 
 def extract_adv_data(adv_data):
