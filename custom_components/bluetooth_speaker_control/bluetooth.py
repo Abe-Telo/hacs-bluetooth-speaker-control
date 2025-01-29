@@ -1,17 +1,62 @@
-from homeassistant.components.bluetooth.api import async_handle_bluetooth_scan
+import logging
+import asyncio
+from homeassistant.components.bluetooth import (
+    async_register_callback,
+    BluetoothScanningMode,
+    BluetoothChange,
+)
 
-async def discover_bluetooth_devices_via_api(hass, timeout=7):
-    """Use Home Assistant API to scan Bluetooth devices."""
-    _LOGGER.info(f"🔍 Scanning Bluetooth devices via API for {timeout} seconds...")
+_LOGGER = logging.getLogger(__name__)
+
+async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
+    """Discover nearby Bluetooth devices."""
+    _LOGGER.info(f"🔍 Starting Bluetooth scan (Passive: {passive_scanning})...")
+
+    discovered_devices = []
+
+    def device_found(service_info, change: BluetoothChange):
+        """Callback when a device is found."""
+        
+        device_name = (
+            getattr(service_info, "name", None)
+            or getattr(service_info.advertisement, "local_name", None)
+            or "Unknown"
+        )
+        device = {
+            "name": device_name,
+            "mac": service_info.address,
+            "rssi": getattr(service_info, "rssi", -100),
+            "service_uuids": service_info.service_uuids or [],
+        }
+        _LOGGER.info(f"📡 Found Bluetooth device: {device}")
+        if device not in discovered_devices:
+            discovered_devices.append(device)
 
     try:
-        response = await async_handle_bluetooth_scan(hass, {"seconds": timeout})
-        _LOGGER.info(f"📡 API Scan Response: {response}")
-        return response["devices"] if "devices" in response else []
-    except Exception as e:
-        _LOGGER.error(f"🔥 Error using API for Bluetooth scan: {e}")
-        return []
+        _LOGGER.info("📡 Registering Bluetooth scan callback...")
 
+        scan_mode = BluetoothScanningMode.PASSIVE if passive_scanning else BluetoothScanningMode.ACTIVE
+
+        stop_scan = async_register_callback(
+            hass,
+            device_found,
+            match_dict={},  # ✅ Ensures all devices are matched
+            mode=scan_mode  # ✅ Dynamically switch scanning mode
+        )
+
+        _LOGGER.info(f"⏳ Waiting {timeout} seconds for scan results...")
+        await asyncio.sleep(timeout)  # ✅ Wait for scan to complete
+
+        _LOGGER.info("🛑 Stopping Bluetooth scan...")
+        hass.loop.call_soon_threadsafe(stop_scan)  # ✅ Ensures stop_scan() runs safely
+
+    except Exception as e:
+        _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
+
+    if not discovered_devices:
+        _LOGGER.warning("⚠️ No Bluetooth devices found.")
+
+    return discovered_devices
 
 
 
