@@ -2,7 +2,7 @@ import logging
 import voluptuous as vol
 import asyncio
 from homeassistant import config_entries
-from homeassistant.core import callback
+from homeassistant.core import callback, ServiceCall
 from homeassistant.helpers.entity_component import async_update_entity
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 from .const import DOMAIN, CONF_MAC_ADDRESS, CONF_NAME
@@ -26,7 +26,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         _LOGGER.info("🔍 Starting Bluetooth device discovery (config_flow).")
-        
+
         # Introduce a delay before scanning to improve results
         _LOGGER.info("⏳ Waiting 5 seconds before scanning...")
         await asyncio.sleep(5)
@@ -34,7 +34,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             self.discovered_devices = await discover_bluetooth_devices(self.hass)
 
-            # Detect if Passive Scanning is ON or OFF based on discovered data
+            # Detect if Passive Scanning is ON or OFF
             if any(device.get("rssi") != -100 for device in self.discovered_devices):
                 self.passive_scanning = True
                 _LOGGER.info("🟢 Passive Scanning is ON. Using advertisement data.")
@@ -51,8 +51,12 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not self.discovered_devices:
             _LOGGER.warning("⚠️ No Bluetooth devices discovered. Retrying in 5 seconds...")
             await asyncio.sleep(5)
-            self.discovered_devices = await discover_bluetooth_devices(self.hass)
-        
+            try:
+                self.discovered_devices = await discover_bluetooth_devices(self.hass)
+            except Exception as e:
+                _LOGGER.error(f"🔥 Second scan failed: {e}")
+                errors["base"] = "scan_retry_failed"
+
         if not self.discovered_devices:
             _LOGGER.error("❌ No Bluetooth devices found after retry. Aborting scan.")
             errors["base"] = "no_devices_found"
