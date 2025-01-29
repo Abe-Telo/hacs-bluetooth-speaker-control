@@ -3,6 +3,7 @@ import asyncio
 import requests
 import json
 import os
+import codecs
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
@@ -33,6 +34,16 @@ BLUETOOTH_SIG_COMPANIES = {
 
 MANUFACTURER_CACHE = {}
 
+def decode_device_name(name_bytes):
+    """Attempt to decode a device name from bytes."""
+    try:
+        return name_bytes.decode("utf-8").strip()
+    except UnicodeDecodeError:
+        try:
+            return name_bytes.decode("latin-1").strip()
+        except UnicodeDecodeError:
+            return codecs.encode(name_bytes, 'hex').decode()
+
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
     _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
@@ -42,6 +53,9 @@ def _format_device(service_info):
         (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None) or  
         service_info.address  
     )
+    
+    if isinstance(device_name, bytes):
+        device_name = decode_device_name(device_name)
     
     manufacturer_data = service_info.manufacturer_data
     manufacturer_id = next(iter(manufacturer_data), None)
@@ -106,35 +120,6 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
 
     return discovered_devices
 
-def load_manufacturer_cache():
-    """Load manufacturer cache from a JSON file."""
-    if os.path.exists(CACHE_FILE):
-        try:
-            with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            _LOGGER.warning(f"Failed to load manufacturer cache: {e}")
-    return {}
-
-def save_manufacturer_cache(cache):
-    """Save manufacturer cache to a JSON file."""
-    try:
-        with open(CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump(cache, f, indent=4)
-    except Exception as e:
-        _LOGGER.warning(f"Failed to save manufacturer cache: {e}")
-
-def clear_manufacturer_cache():
-    """Clear the manufacturer cache file and memory."""
-    global MANUFACTURER_CACHE
-    MANUFACTURER_CACHE = {}
-    if os.path.exists(CACHE_FILE):
-        try:
-            os.remove(CACHE_FILE)
-            _LOGGER.info("✅ Manufacturer cache cleared successfully.")
-        except Exception as e:
-            _LOGGER.warning(f"Failed to clear manufacturer cache: {e}")
-
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the cache-clearing service in Home Assistant."""
     async def handle_clear_cache(call: ServiceCall) -> None:
@@ -143,6 +128,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         clear_manufacturer_cache()
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
