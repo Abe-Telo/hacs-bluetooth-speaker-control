@@ -2,6 +2,7 @@ import logging
 import asyncio
 from homeassistant.components.bluetooth import (
     async_register_callback,
+    async_handle_bluetooth_scan,
     BluetoothScanningMode,
     BluetoothChange,
 )
