@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from homeassistant.components.bluetooth import (
     async_register_callback,
     BluetoothScanningMode,
@@ -22,7 +23,8 @@ async def discover_bluetooth_devices(hass, timeout=5):
             "service_uuids": service_info.service_uuids or [],
         }
         _LOGGER.info(f"📡 Found Bluetooth device: {device}")
-        discovered_devices.append(device)
+        if device not in discovered_devices:
+            discovered_devices.append(device)
 
     try:
         _LOGGER.info("📡 Registering Bluetooth scan callback...")
@@ -30,11 +32,14 @@ async def discover_bluetooth_devices(hass, timeout=5):
         stop_scan = async_register_callback(
             hass,
             device_found,
-            mode=BluetoothScanningMode.ACTIVE  # Fix: Provide mode parameter
+            BluetoothScanningMode.ACTIVE  # ✅ Fix: Correct parameter placement
         )
 
         _LOGGER.info(f"⏳ Waiting {timeout} seconds for scan results...")
-        await hass.async_create_task(hass.loop.run_in_executor(None, lambda: hass.async_add_executor_job(stop_scan)))
+        await asyncio.sleep(timeout)  # ✅ Instead of improperly using async_add_executor_job
+
+        _LOGGER.info("🛑 Stopping Bluetooth scan...")
+        stop_scan()  # ✅ Properly stopping scan
 
     except Exception as e:
         _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
@@ -45,7 +50,7 @@ async def discover_bluetooth_devices(hass, timeout=5):
     return discovered_devices
 
 
-
+### **🔹 Extract Advertisement Data Properly**
 def extract_adv_data(adv_data):
     """Extract attributes from AdvertisementData safely."""
     if adv_data is None:
@@ -69,6 +74,8 @@ def extract_adv_data(adv_data):
         "tx_power": getattr(adv_data, "tx_power", "Unknown"),
     }
 
+
+### **🔹 Extract BLE Device Data Properly**
 def extract_ble_device(device):
     """Extract attributes from BLEDevice safely."""
     return {
@@ -78,6 +85,8 @@ def extract_ble_device(device):
         "id": getattr(device, "id", "Unknown"),
     }
 
+
+### **🔹 Helper Function for Serializing Byte Data**
 def _serialize_bytes(data):
     """Convert bytearray or bytes to JSON serializable format."""
     if isinstance(data, (bytes, bytearray)):
@@ -88,6 +97,8 @@ def _serialize_bytes(data):
         return [_serialize_bytes(item) for item in data]
     return data
 
+
+### **🔹 Simulated Bluetooth Pairing, Connecting, Disconnecting**
 def pair_device(mac_address):
     """Simulate pairing with a Bluetooth device."""
     try:
