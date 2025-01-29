@@ -18,7 +18,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         self.discovered_devices = []
         self.selected_device = None
-        self.passive_scanning = None  # Keep track of scanning mode
+        self.passive_scanning = None
 
     async def async_step_user(self, user_input=None):
         """Handle the first step of the configuration flow."""
@@ -42,7 +42,16 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.error(f"🔥 Error during device discovery: {e}")
             errors["base"] = "discovery_failed"
 
-        # If user input is provided
+        # Ensure we do not proceed if no devices are found
+        if not self.discovered_devices:
+            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are powered on and in range.")
+            errors["base"] = "no_devices_found"
+            return self.async_show_form(
+                step_id="user",
+                data_schema=self._get_device_schema(no_devices=True),
+                errors=errors,
+            )
+
         if user_input:
             selected_mac = user_input.get(CONF_MAC_ADDRESS)
 
@@ -61,16 +70,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 else:
                     _LOGGER.error(f"❌ Selected MAC address {selected_mac} not found in discovered devices.")
                     errors["base"] = "device_not_found"
-
-        # If no devices are found, prevent the user from proceeding
-        if not self.discovered_devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are powered on and in range.")
-            errors["base"] = "no_devices_found"
-            return self.async_show_form(
-                step_id="user",
-                data_schema=self._get_device_schema(no_devices=True),
-                errors=errors,
-            )
 
         _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
 
@@ -105,7 +104,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.error(f"⚠️ Error extracting device details: {e}")
             return self.async_abort(reason="device_details_error")
 
-        # Format device details for display
         device_details = (
             f"**Device Information**\n\n"
             f"🔹 **Name:** {device_name}\n"
@@ -115,13 +113,10 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             f"🔹 **Service UUIDs:** `{', '.join(device_uuids)}`\n"
         )
 
-        # Log the device details
         _LOGGER.info(f"🔵 Device Details: {device_details}")
 
-        # Default nickname
         default_nickname = f"{device_name} ({device_mac})"
 
-        # Define input schema
         data_schema = vol.Schema(
             {
                 vol.Required(CONF_NAME, default=default_nickname): str,
@@ -138,7 +133,6 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Create a media player entity for the discovered Bluetooth speaker."""
         _LOGGER.info(f"🎵 Adding {name} as a media player entity.")
 
-        # Check if the entity already exists
         entity_registry = async_get_entity_registry(self.hass)
         entity_id = f"media_player.{name.lower().replace(' ', '_')}"
 
