@@ -70,26 +70,30 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def handle_scan_devices(call: ServiceCall):
         """Handle scanning for Bluetooth devices."""
         _LOGGER.info("🔍 Scanning for Bluetooth devices...")
-        devices = await discover_bluetooth_devices(hass)
+        try:
+            devices = await discover_bluetooth_devices(hass)
 
-        if not devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices found during scan.")
-            await send_notification("Bluetooth Scan", "No Bluetooth devices found.")
-        else:
-            _LOGGER.info(f"✅ Found {len(devices)} Bluetooth devices.")
-            for device in devices:
-                _LOGGER.info(f"📡 Discovered: {device}")
+            if not devices:
+                _LOGGER.warning("⚠️ No Bluetooth devices found during scan.")
+                await send_notification("Bluetooth Scan", "No Bluetooth devices found.")
+            else:
+                _LOGGER.info(f"✅ Found {len(devices)} Bluetooth devices.")
+                for device in devices:
+                    _LOGGER.info(f"📡 Discovered: {device}")
 
-            # Fire event with scan results
-            hass.bus.async_fire("bluetooth_device_discovered", {"devices": devices})
+                # Fire event with scan results
+                hass.bus.async_fire("bluetooth_device_discovered", {"devices": devices})
 
-            # Store list of devices in HA state
-            hass.states.async_set(f"{DOMAIN}.device_list", str(devices))
+                # Store list of devices in HA state
+                hass.states.async_set(f"{DOMAIN}.device_list", str(devices))
 
-            await send_notification(
-                "Bluetooth Scan Complete",
-                f"Discovered {len(devices)} Bluetooth devices. Check logs for details.",
-            )
+                await send_notification(
+                    "Bluetooth Scan Complete",
+                    f"Discovered {len(devices)} Bluetooth devices. Check logs for details.",
+                )
+        except Exception as e:
+            _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
+            await send_notification("Bluetooth Scan Error", f"An error occurred: {e}")
 
     # Register services
     hass.services.async_register(DOMAIN, "pair_speaker", handle_pair_speaker)
@@ -99,8 +103,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     # Automatically scan on startup
     async def startup_scan(event):
+        """Scan for Bluetooth devices when Home Assistant starts."""
         _LOGGER.info("🔄 Running initial Bluetooth scan on startup...")
-        await handle_scan_devices(ServiceCall(DOMAIN, {}))
+        await handle_scan_devices(ServiceCall(DOMAIN, "scan_devices", {}))  # ✅ FIXED ServiceCall format
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, startup_scan)
 
