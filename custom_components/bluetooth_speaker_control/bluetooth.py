@@ -16,8 +16,10 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
 
     def device_found(service_info, change: BluetoothChange):
         """Callback when a device is found."""
+        
+        device_name = getattr(service_info, "name", None) or getattr(service_info, "local_name", None) or "Unknown"
         device = {
-            "name": service_info.name or "Unknown",
+            "name": device_name,
             "mac": service_info.address,
             "rssi": getattr(service_info, "rssi", -100),
             "service_uuids": service_info.service_uuids or [],
