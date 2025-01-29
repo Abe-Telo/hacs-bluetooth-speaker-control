@@ -18,6 +18,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         self.discovered_devices = []
         self.selected_device = None
+        self.passive_scanning = None  # Keep track of scanning mode
 
     async def async_step_user(self, user_input=None):
         """Handle the first step of the configuration flow."""
@@ -27,6 +28,15 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             self.discovered_devices = await discover_bluetooth_devices(self.hass)
+
+            # Detect if Passive Scanning is ON or OFF based on discovered data
+            if any(device.get("rssi") != -100 for device in self.discovered_devices):
+                self.passive_scanning = True
+                _LOGGER.info("🟢 Passive Scanning is ON. Using advertisement data.")
+            else:
+                self.passive_scanning = False
+                _LOGGER.warning("⚠️ Passive Scanning is OFF. Using fallback scanning.")
+
             _LOGGER.info(f"✅ Discovered devices: {self.discovered_devices}")
         except Exception as e:
             _LOGGER.error(f"🔥 Error during device discovery: {e}")
