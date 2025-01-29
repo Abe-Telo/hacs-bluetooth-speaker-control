@@ -1,78 +1,60 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
+import json
 
 _LOGGER = logging.getLogger(__name__)
-
 
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
+        _LOGGER.info("🔍 Starting Bluetooth device discovery...")
+
+        # Get the Bluetooth scanner
         scanner = async_get_scanner(hass)
         if not scanner:
-            _LOGGER.error("Bluetooth scanner not available.")
+            _LOGGER.error("❌ Bluetooth scanner is unavailable. Ensure the Bluetooth integration is set up correctly.")
             return []
 
-        # Get both devices and advertisement data (newer Home Assistant versions)
-        discovered_devices = scanner.discovered_devices_and_advertisement_data
+        # Attempt to use discovered_devices_and_advertisement_data if available
+        discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
+
+        if not discovered_devices:
+            _LOGGER.warning("⚠️ Using fallback to scanner.discovered_devices.")
+            discovered_devices = {
+                device: {"rssi": getattr(device, "rssi", -100)}  # Add at least RSSI
+                for device in scanner.discovered_devices
+            }
+
+        if not discovered_devices:
+            _LOGGER.warning(
+                "⚠️ No devices discovered. Ensure devices are in discoverable mode and within range of the Bluetooth adapter."
+            )
+            return []
 
         device_list = []
 
-        for device, adv_data in discovered_devices.values():
-            name = device.name or adv_data.local_name or "Unknown"
-            mac = device.address
-            manufacturer = adv_data.manufacturer or "Unknown"
-            rssi = adv_data.rssi if adv_data.rssi else "Unknown"
-            uuids = adv_data.service_uuids or []
+        _LOGGER.info(f"🔍 Found {len(discovered_devices)} Bluetooth devices.")
 
-            # **Determine Device Type and Icon**
-            device_type = "Unknown"
-            icon = "❓"  # Default unknown emoji/icon
-            name_lower = name.lower()
+        for device, adv_data in discovered_devices.items():
+            try:
+                # Process the device and advertisement data
+                device_data = {
+                    **extract_ble_device(device),
+                    **extract_adv_data(adv_data),
+                }
+                device_list.append(device_data)
 
-            if "headphone" in name_lower:
-                device_type = "Headphone"
-                icon = "🎧"
-            elif "speaker" in name_lower or "music" in name_lower:
-                device_type = "Speaker"
-                icon = "🔊"
-            elif "tv" in name_lower or "display" in name_lower:
-                device_type = "TV"
-                icon = "📺"
-            elif "phone" in name_lower or "mobile" in name_lower:
-                device_type = "Phone"
-                icon = "📱"
-            elif "watch" in name_lower or "wearable" in name_lower:
-                device_type = "Wearable"
-                icon = "⌚"
-            elif "keyboard" in name_lower:
-                device_type = "Keyboard"
-                icon = "⌨️"
-            elif "mouse" in name_lower:
-                device_type = "Mouse"
-                icon = "🖱️"
-            elif "car" in name_lower or "auto" in name_lower:
-                device_type = "Car System"
-                icon = "🚗"
+                # Log the discovered device for debugging
+                _LOGGER.debug("📡 Device discovered: %s", json.dumps(device_data, indent=4))
 
-            # **Format the discovered device**
-            device_list.append({
-                "name": name,
-                "mac": mac,
-                "type": device_type,
-                "icon": icon,  # Use the icon determined above
-                "rssi": rssi,
-                "manufacturer": manufacturer,
-                "uuids": uuids,
-            })
+            except Exception as e:
+                _LOGGER.error(f"⚠️ Error processing device {device}: {e}")
 
         return device_list
 
     except Exception as e:
-        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
+        _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
         return []
-
-
-
 
 def extract_adv_data(adv_data):
     """Extract attributes from AdvertisementData safely."""
@@ -97,7 +79,6 @@ def extract_adv_data(adv_data):
         "tx_power": getattr(adv_data, "tx_power", "Unknown"),
     }
 
-
 def extract_ble_device(device):
     """Extract attributes from BLEDevice safely."""
     return {
@@ -106,7 +87,6 @@ def extract_ble_device(device):
         "details": str(getattr(device, "details", {})),
         "id": getattr(device, "id", "Unknown"),
     }
-
 
 def _serialize_bytes(data):
     """Convert bytearray or bytes to JSON serializable format."""
@@ -118,95 +98,31 @@ def _serialize_bytes(data):
         return [_serialize_bytes(item) for item in data]
     return data
 
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# --- 🔗 Pairing, Connecting, Disconnecting ---
 
 def pair_device(mac_address):
     """Simulate pairing with a Bluetooth device."""
     try:
-        # Replace this with actual pairing logic
-        _LOGGER.debug(f"Simulated pairing with {mac_address}")
+        _LOGGER.debug(f"🔗 Simulated pairing with {mac_address}")
         return True
     except Exception as e:
-        _LOGGER.error(f"Error pairing with {mac_address}: {e}")
+        _LOGGER.error(f"❌ Error pairing with {mac_address}: {e}")
         return False
-
-
-
 
 def connect_device(mac_address):
     """Simulate connecting to a Bluetooth device."""
     try:
-        # Replace this with actual connection logic
-        _LOGGER.debug(f"Simulated connecting to {mac_address}")
+        _LOGGER.debug(f"🔄 Simulated connecting to {mac_address}")
         return True
     except Exception as e:
-        _LOGGER.error(f"Error connecting to {mac_address}: {e}")
+        _LOGGER.error(f"❌ Error connecting to {mac_address}: {e}")
         return False
-
-
-
 
 def disconnect_device(mac_address):
     """Simulate disconnecting from a Bluetooth device."""
     try:
-        # Replace this with actual disconnection logic
-        _LOGGER.debug(f"Simulated disconnecting from {mac_address}")
+        _LOGGER.debug(f"🔌 Simulated disconnecting from {mac_address}")
         return True
     except Exception as e:
-        _LOGGER.error(f"Error disconnecting from {mac_address}: {e}")
+        _LOGGER.error(f"❌ Error disconnecting from {mac_address}: {e}")
         return False

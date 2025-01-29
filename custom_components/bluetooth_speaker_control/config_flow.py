@@ -2,8 +2,11 @@ import logging
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.helpers.entity_component import async_update_entity
+from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 from .const import DOMAIN, CONF_MAC_ADDRESS, CONF_NAME
 from .bluetooth import discover_bluetooth_devices
+from .media_player import BluetoothSpeaker
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,6 +63,10 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the step where the user names the selected device."""
         if user_input:
             _LOGGER.info(f"✅ Saving device with nickname: {user_input[CONF_NAME]}")
+            
+            # Create a new entity for the media player
+            await self._create_media_player_entity(self.selected_device, user_input[CONF_NAME])
+
             return self.async_create_entry(
                 title=user_input[CONF_NAME],
                 data=self.selected_device,
@@ -105,6 +112,22 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=data_schema,
             description_placeholders={"device_details": device_details},
         )
+
+    async def _create_media_player_entity(self, device, name):
+        """Create a media player entity for the discovered Bluetooth speaker."""
+        _LOGGER.info(f"🎵 Adding {name} as a media player entity.")
+
+        # Check if the entity already exists
+        entity_registry = async_get_entity_registry(self.hass)
+        entity_id = f"media_player.{name.lower().replace(' ', '_')}"
+
+        if entity_id not in entity_registry.entities:
+            speaker_entity = BluetoothSpeaker(name, device["mac"])
+            self.hass.add_job(self.hass.states.async_set(entity_id, speaker_entity))
+            await async_update_entity(self.hass, entity_id)
+            _LOGGER.info(f"✅ Media player entity {entity_id} created.")
+        else:
+            _LOGGER.warning(f"⚠️ Media player entity {entity_id} already exists.")
 
     @callback
     def _get_device_schema(self, no_devices=False):
