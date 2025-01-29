@@ -8,42 +8,39 @@ from .bluetooth import discover_bluetooth_devices
 
 _LOGGER = logging.getLogger(__name__)
 
-SCAN_RETRY_DELAY = 5  # Retry scan delay in seconds
-SCAN_MAX_RETRIES = 3  # Maximum retries for scanning
-
-
 class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle the configuration flow for Bluetooth Speaker Control."""
+    """Handle the Bluetooth Speaker Control configuration flow."""
 
     VERSION = 1
 
     def __init__(self):
-        """Initialize the config flow."""
         self.discovered_devices = []
         self.selected_device = None
 
     async def async_step_user(self, user_input=None):
-        """Handle the first step of the configuration flow."""
+        """Step to scan for Bluetooth devices and allow selection."""
         errors = {}
-        scan_attempts = 0
 
-        while scan_attempts < SCAN_MAX_RETRIES:
-            _LOGGER.info(f"🔍 Starting Bluetooth device discovery (attempt {scan_attempts + 1})")
-            self.discovered_devices = await discover_bluetooth_devices(self.hass)
+        _LOGGER.info("🔍 Starting Bluetooth discovery in config flow...")
 
-            if self.discovered_devices:
-                _LOGGER.info(f"✅ Found {len(self.discovered_devices)} Bluetooth devices.")
-                break  # Stop retrying if devices are found
-            else:
-                _LOGGER.warning(f"⚠️ No Bluetooth devices found. Retrying in {SCAN_RETRY_DELAY} seconds...")
-                await asyncio.sleep(SCAN_RETRY_DELAY)
-                scan_attempts += 1
+        for attempt in range(3):  # Retry scanning up to 3 times if needed
+            _LOGGER.info(f"🕵️‍♂️ Scan attempt {attempt + 1}...")
+            try:
+                self.discovered_devices = await discover_bluetooth_devices(self.hass, timeout=5)
+                if self.discovered_devices:
+                    _LOGGER.info(f"✅ Found {len(self.discovered_devices)} devices!")
+                    break  # Exit loop if devices are found
+            except Exception as e:
+                _LOGGER.error(f"🔥 Bluetooth scan error: {e}")
+                errors["base"] = "scan_failed"
+
+            await asyncio.sleep(2)  # Short delay before retrying
 
         if user_input:
             selected_mac = user_input.get(CONF_MAC_ADDRESS)
 
             if not selected_mac or selected_mac == "none":
-                _LOGGER.error("❌ Invalid selection: No device selected.")
+                _LOGGER.error("❌ No device selected.")
                 errors["base"] = "invalid_selection"
             else:
                 self.selected_device = next(
@@ -51,14 +48,14 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     None,
                 )
                 if self.selected_device:
-                    _LOGGER.info(f"🟢 Selected Bluetooth Device: {self.selected_device}")
+                    _LOGGER.info(f"🟢 Selected device: {self.selected_device}")
                     return await self.async_step_set_name()
                 else:
-                    _LOGGER.error(f"❌ Selected MAC address {selected_mac} not found in discovered devices.")
+                    _LOGGER.error(f"❌ Selected MAC {selected_mac} not found in scan results.")
                     errors["base"] = "device_not_found"
 
         if not self.discovered_devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices found after retries. Ensure devices are powered on and in range.")
+            _LOGGER.warning("⚠️ No Bluetooth devices discovered.")
             errors["base"] = "no_devices_found"
 
         return self.async_show_form(
@@ -68,7 +65,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_set_name(self, user_input=None):
-        """Handle the step where the user names the selected device."""
+        """Step to set the name for the selected device."""
         if user_input:
             _LOGGER.info(f"✅ Saving device with name: {user_input[CONF_NAME]}")
             return self.async_create_entry(
@@ -76,39 +73,21 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data=self.selected_device,
             )
 
-        # Extract device details
         device_name = self.selected_device.get("name", "Unknown")
         device_mac = self.selected_device.get("mac", "Unknown")
-        device_rssi = self.selected_device.get("rssi", "Unknown")
-        device_uuids = self.selected_device.get("service_uuids", ["None"])
-
-        # Format device details for display
-        device_details = (
-            f"**Device Information**\n\n"
-            f"🔹 **Name:** {device_name}\n"
-            f"🔹 **MAC Address:** `{device_mac}`\n"
-            f"🔹 **RSSI:** `{device_rssi} dBm`\n"
-            f"🔹 **Service UUIDs:** `{', '.join(device_uuids)}`\n"
-        )
-
-        _LOGGER.info(f"🔵 Device Details: {device_details}")
-
-        # Define input schema
-        data_schema = vol.Schema(
-            {
-                vol.Required(CONF_NAME, default=f"{device_name} ({device_mac})"): str,
-            }
-        )
 
         return self.async_show_form(
             step_id="set_name",
-            data_schema=data_schema,
-            description_placeholders={"device_details": device_details},
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_NAME, default=f"{device_name} ({device_mac})"): str,
+                }
+            ),
         )
 
     @callback
     def _get_device_schema(self, no_devices=False):
-        """Generate the schema for the list of devices."""
+        """Generate the schema for discovered devices."""
         if no_devices:
             return vol.Schema(
                 {
@@ -119,7 +98,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         device_options = {
-            device["mac"]: f"{device['name']} ({device['mac']}) {device['rssi']} dBm"
+            device["mac"]: f"{device['name']} ({device['mac']}) | RSSI: {device['rssi']} dBm"
             for device in self.discovered_devices
         }
 
