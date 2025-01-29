@@ -1,8 +1,6 @@
 import logging
-import json
- 
 from homeassistant.components.bluetooth import (
-    async_get_discovered_devices,
+    async_get_advertisement_callback,
     async_register_callback,
     BluetoothScanningMode,
     BluetoothChange,
@@ -16,7 +14,7 @@ async def discover_bluetooth_devices(hass, timeout=5):
 
     discovered_devices = []
 
-    def device_found(service_info, change):
+    def device_found(service_info: BluetoothChange, change):
         """Callback when a device is found."""
         device = {
             "name": service_info.name or "Unknown",
@@ -29,6 +27,7 @@ async def discover_bluetooth_devices(hass, timeout=5):
 
     try:
         _LOGGER.info("📡 Registering Bluetooth scan callback...")
+
         stop_scan = async_register_callback(
             hass,
             device_found,
@@ -46,26 +45,6 @@ async def discover_bluetooth_devices(hass, timeout=5):
 
     return discovered_devices
 
-
-def _process_discovered_devices(discovered_devices):
-    """Processes and formats discovered Bluetooth devices."""
-    device_list = []
-    _LOGGER.info(f"✅ Found {len(discovered_devices)} Bluetooth devices.")
-
-    for device, adv_data in discovered_devices.items():
-        try:
-            device_data = {
-                **extract_ble_device(device),
-                **extract_adv_data(adv_data),
-            }
-            device_list.append(device_data)
-
-            _LOGGER.debug("📡 Device discovered: %s", json.dumps(device_data, indent=4))
-
-        except Exception as e:
-            _LOGGER.error(f"⚠️ Error processing device {device}: {e}")
-
-    return device_list
 
 def extract_adv_data(adv_data):
     """Extract attributes from AdvertisementData safely."""
