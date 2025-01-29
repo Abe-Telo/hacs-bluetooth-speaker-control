@@ -1,19 +1,18 @@
-from homeassistant.components.bluetooth import async_get_scanner
 import logging
+from homeassistant.components.bluetooth import async_get_scanner
 import json
 
 _LOGGER = logging.getLogger(__name__)
 
 async def discover_bluetooth_devices(hass):
-    """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
+    """Discover all nearby Bluetooth devices and log raw data."""
     try:
-        # Get the Bluetooth scanner
         scanner = async_get_scanner(hass)
         if not scanner:
             _LOGGER.error("❌ Bluetooth scanner is unavailable. Ensure the Bluetooth integration is set up correctly.")
             return []
 
-        # Attempt to use discovered_devices_and_advertisement_data if available
+        # Attempt to use discovered_devices_and_advertisement_data
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
 
         if not discovered_devices:
@@ -24,35 +23,27 @@ async def discover_bluetooth_devices(hass):
             }
 
         if not discovered_devices:
-            _LOGGER.warning(
-                "⚠️ No devices discovered. Ensure devices are in discoverable mode and within range of the Bluetooth adapter."
-            )
+            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are in discoverable mode.")
             return []
 
+        # Log EVERYTHING in raw format
+        _LOGGER.info("📡 RAW DISCOVERY DATA:\n%s", json.dumps(discovered_devices, indent=4, default=str))
+
+        # Store the data to return it
         device_list = []
-
-        _LOGGER.info(f"🔍 Found {len(discovered_devices)} Bluetooth devices.")
-
         for device, adv_data in discovered_devices.items():
-            try:
-                # Process the device and advertisement data
-                device_data = {
-                    **extract_ble_device(device),
-                    **extract_adv_data(adv_data),
-                }
-                device_list.append(device_data)
-
-                # Log the discovered device for debugging
-                _LOGGER.debug("📡 Device discovered: %s", json.dumps(device_data, indent=4))
-
-            except Exception as e:
-                _LOGGER.error(f"⚠️ Error processing device {device}: {e}")
+            device_data = {
+                "device_raw": str(device),  # Store raw device info
+                "adv_raw": str(adv_data),  # Store raw advertisement info
+            }
+            device_list.append(device_data)
 
         return device_list
 
     except Exception as e:
         _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
         return []
+
 
 
 def extract_adv_data(adv_data):
