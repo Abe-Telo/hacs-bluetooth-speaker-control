@@ -82,12 +82,14 @@ def _format_device(service_info):
 
     # Extract name correctly
     device_name = (
-        getattr(service_info, "name", None)  # ✅ First try service_info.name
-        or getattr(service_info, "local_name", None)  # ✅ Sometimes local_name exists
-        or (service_info._advertisement.local_name if hasattr(service_info, "_advertisement") and service_info._advertisement else None)  # ✅ Correctly extract advertisement.local_name
+        service_info.name  # ✅ First try the built-in name
+        or (service_info._advertisement.local_name if hasattr(service_info, "_advertisement") and service_info._advertisement else None)  # ✅ Correctly extract local_name
         or (service_info._advertisement.manufacturer_name if hasattr(service_info, "_advertisement") and service_info._advertisement else None)  # ✅ Try manufacturer_name
         or (service_info.address if ":" in service_info.address else "Unknown")  # ✅ Fallback to MAC only if needed
     )
+
+    # Log the extracted device name to confirm
+    _LOGGER.info(f"🔍 Extracted Device Name: {device_name} for {service_info.address}")
 
     return {
         "name": device_name,
@@ -95,6 +97,7 @@ def _format_device(service_info):
         "rssi": getattr(service_info, "rssi", -100),
         "service_uuids": service_info.service_uuids or [],
     }
+
 
 
 
