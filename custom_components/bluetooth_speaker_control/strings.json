@@ -4,30 +4,52 @@
         "step": {
             "user": {
                 "title": "Configure Bluetooth Speaker",
-                "description": "Select a Bluetooth speaker to configure.",
-                "data": {
-                    "device_mac": "Select a device"
-                }
-            },
-            "set_name": {
-                "title": "Bluetooth Speaker Control",
-                "description": "**Device Details:**\n\n"
-                    "**🔹 Name:** {device_name}\n"
-                    "**🔹 Type:** {device_icon} {device_type}\n"
-                    "**🔹 MAC Address:** `{device_mac}`\n"
-                    "**🔹 RSSI:** `{device_rssi} dBm`\n"
-                    "**🔹 Manufacturer:** `{device_manufacturer}`\n"
-                    "**🔹 Service UUIDs:** `{device_uuids}`\n",
-                "data": {
-                    "nickname": "Nickname"
-                }
+                "description": "Select a Bluetooth speaker to connect or control."
+            }
+        },
+        "error": {
+            "no_devices_found": "No Bluetooth devices found. Ensure devices are discoverable and within range.",
+            "invalid_selection": "Invalid selection. Please choose a valid Bluetooth device.",
+            "pairing_failed": "Failed to pair with the selected Bluetooth device.",
+            "connection_failed": "Failed to connect to the selected Bluetooth device.",
+            "disconnection_failed": "Failed to disconnect from the Bluetooth device."
+        },
+        "abort": {
+            "already_configured": "This device is already configured."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Options for Bluetooth Speaker Control",
+                "description": "Configure additional settings for Bluetooth speaker behavior."
             }
         }
     },
-    "error": {
-        "invalid_mac": "Invalid MAC Address",
-        "connection_failed": "Failed to connect to the speaker.",
-        "no_devices_found": "No Bluetooth devices found. Make sure your device is discoverable.",
-        "device_not_found": "Selected device is no longer available. Try refreshing."
+    "services": {
+        "pair_speaker": {
+            "name": "Pair Bluetooth Speaker",
+            "description": "Pair a Bluetooth speaker by specifying its MAC address."
+        },
+        "connect_speaker": {
+            "name": "Connect Bluetooth Speaker",
+            "description": "Connect to a previously paired Bluetooth speaker."
+        },
+        "disconnect_speaker": {
+            "name": "Disconnect Bluetooth Speaker",
+            "description": "Disconnect from a connected Bluetooth speaker."
+        },
+        "scan_devices": {
+            "name": "Scan for Bluetooth Devices",
+            "description": "Scan for nearby Bluetooth devices and list them in the logs."
+        },
+        "debug_scan": {
+            "name": "Debug Bluetooth Scan",
+            "description": "Log all detected Bluetooth devices for debugging purposes."
+        },
+        "notify_discovery": {
+            "name": "Notify Device Discovery",
+            "description": "Send a notification with discovered Bluetooth devices."
+        }
     }
 }

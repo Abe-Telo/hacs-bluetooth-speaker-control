@@ -1,26 +1,39 @@
 # Service to pair a Bluetooth speaker
 pair_speaker:
   name: "Pair Bluetooth Speaker"
-  description: "Pair a Bluetooth speaker by selecting its MAC address."
+  description: "Pair a Bluetooth speaker with the system."
   fields:
     mac_address:
       description: "The MAC address of the Bluetooth speaker to pair."
       example: "00:1A:7D:DA:71:13"
 
-# Service to connect to a Bluetooth speaker
 connect_speaker:
-  name: "Connect to Bluetooth Speaker"
-  description: "Connect to a Bluetooth speaker by its MAC address."
+  name: "Connect Bluetooth Speaker"
+  description: "Connect to a paired Bluetooth speaker."
   fields:
     mac_address:
-      description: "The MAC address of the Bluetooth speaker."
+      description: "The MAC address of the Bluetooth speaker to connect to."
       example: "00:1A:7D:DA:71:13"
 
-# Service to disconnect from a Bluetooth speaker
 disconnect_speaker:
-  name: "Disconnect from Bluetooth Speaker"
-  description: "Disconnect from a connected Bluetooth speaker."
+  name: "Disconnect Bluetooth Speaker"
+  description: "Disconnect from a currently connected Bluetooth speaker."
   fields:
     mac_address:
-      description: "The MAC address of the Bluetooth speaker."
+      description: "The MAC address of the Bluetooth speaker to disconnect."
       example: "00:1A:7D:DA:71:13"
+
+scan_devices:
+  name: "Scan for Bluetooth Devices"
+  description: "Trigger a Bluetooth scan to find nearby devices."
+  fields: {}
+
+debug_scan:
+  name: "Debug Bluetooth Scan"
+  description: "Runs a scan and logs all detected Bluetooth devices for debugging."
+  fields: {}
+
+notify_discovery:
+  name: "Notify Device Discovery"
+  description: "Send a persistent notification with the results of a Bluetooth scan."
+  fields: {}
