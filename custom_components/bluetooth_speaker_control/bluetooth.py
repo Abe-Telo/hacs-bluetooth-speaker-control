@@ -1,8 +1,15 @@
 import logging
 import asyncio
+import requests
+import json
+import os
+
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.entity_component import async_update_entity
 from homeassistant.components.bluetooth import (
     async_register_callback,
-    async_discovered_service_info,  # ✅ Use built-in discovery instead of direct scanning
+    async_discovered_service_info,
     BluetoothScanningMode,
     BluetoothChange,
 )
@@ -11,32 +18,25 @@ _LOGGER = logging.getLogger(__name__)
 
 async def scan_bluetooth_devices(hass):
     """Run both Active and Passive scans and merge results."""
-
     _LOGGER.info("🔄 Running Active Scan...")
     active_results = await discover_bluetooth_devices(hass, timeout=10, passive_scanning=False)
 
     _LOGGER.info("🔄 Running Passive Scan...")
     passive_results = await discover_bluetooth_devices(hass, timeout=10, passive_scanning=True)
 
-    # Merge both results (avoid duplicates)
     all_results = {device["mac"]: device for device in active_results + passive_results}
-    
     _LOGGER.info(f"✅ Final Merged Bluetooth Devices: {list(all_results.values())}")
 
-    return list(all_results.values())  # Convert back to a list
-
+    return list(all_results.values())
 
 async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
     """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
     _LOGGER.info(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
-
     discovered_devices = []
 
-    # ✅ Fetch already discovered Bluetooth devices
     for service_info in async_discovered_service_info(hass):
         discovered_devices.append(_format_device(service_info))
 
-    # ✅ If devices were already discovered, return them immediately
     if discovered_devices:
         _LOGGER.info(f"✅ Found {len(discovered_devices)} devices before scanning: {discovered_devices}")
         return discovered_devices
@@ -50,22 +50,12 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
 
     try:
         _LOGGER.info("📡 Registering Bluetooth scan callback...")
-
         scan_mode = BluetoothScanningMode.PASSIVE if passive_scanning else BluetoothScanningMode.ACTIVE
-
-        stop_scan = async_register_callback(
-            hass,
-            device_found,
-            match_dict={},  # ✅ Ensures all devices are matched
-            mode=scan_mode  # ✅ Dynamically switch scanning mode
-        )
-
+        stop_scan = async_register_callback(hass, device_found, match_dict={}, mode=scan_mode)
         _LOGGER.info(f"⏳ Waiting {timeout} seconds for scan results...")
-        await asyncio.sleep(timeout)  # ✅ Wait for scan to complete
-
+        await asyncio.sleep(timeout)
         _LOGGER.info("🛑 Stopping Bluetooth scan...")
-        hass.loop.call_soon_threadsafe(stop_scan)  # ✅ Ensures stop_scan() runs safely
-
+        hass.loop.call_soon_threadsafe(stop_scan)
     except Exception as e:
         _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
 
@@ -74,8 +64,8 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
 
     return discovered_devices
 
+CACHE_FILE = "manufacturer_cache.json"
 
-# Bluetooth SIG Company Identifiers (Partial List, Expand as Needed)
 BLUETOOTH_SIG_COMPANIES = {
     6: "Microsoft",
     76: "Apple, Inc.",
@@ -87,45 +77,50 @@ BLUETOOTH_SIG_COMPANIES = {
     1177: "Logitech Inc.",
     3052: "Fitbit, Inc.",
     6171: "Meta Platforms, Inc.",
-    # Add more manufacturers as needed
 }
 
-def _format_device(service_info):
-    """Extract relevant details from the discovered service info."""
+MANUFACTURER_CACHE = {}
 
-    # Log everything inside service_info to check available attributes
-    _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
+def load_manufacturer_cache():
+    """Load manufacturer cache from a JSON file."""
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            _LOGGER.warning(f"Failed to load manufacturer cache: {e}")
+    return {}
 
-    # Extract the device's friendly name (fallback to MAC only if necessary)
-    device_name = (
-        service_info.name or  
-        (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None) or  
-        service_info.address  
-    )
+def save_manufacturer_cache(cache):
+    """Save manufacturer cache to a JSON file."""
+    try:
+        with open(CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=4)
+    except Exception as e:
+        _LOGGER.warning(f"Failed to save manufacturer cache: {e}")
 
-    # Extract manufacturer data properly
-    manufacturer_data = service_info.manufacturer_data
-    manufacturer_id = next(iter(manufacturer_data), None)  # Get first manufacturer key
-    manufacturer_raw = manufacturer_data.get(manufacturer_id, b'')  # Get binary data
+def clear_manufacturer_cache():
+    """Clear the manufacturer cache file and memory."""
+    global MANUFACTURER_CACHE
+    MANUFACTURER_CACHE = {}
+    if os.path.exists(CACHE_FILE):
+        try:
+            os.remove(CACHE_FILE)
+            _LOGGER.info("✅ Manufacturer cache cleared successfully.")
+        except Exception as e:
+            _LOGGER.warning(f"Failed to clear manufacturer cache: {e}")
 
-    # Convert manufacturer ID to a readable format
-    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the cache-clearing service in Home Assistant."""
+    async def handle_clear_cache(call: ServiceCall) -> None:
+        """Service call to clear the manufacturer cache."""
+        _LOGGER.info("🗑️ Clearing manufacturer cache...")
+        clear_manufacturer_cache()
+    hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
+    return True
 
-    # If name is just a MAC address, make it more user-friendly
-    if device_name == service_info.address:
-        device_name = f"Unknown Device ({service_info.address[-5:]})"
 
-    # Log extracted details
-    _LOGGER.info(f"🆔 Discovered Device: Name='{device_name}', Manufacturer='{manufacturer}', MAC='{service_info.address}'")
 
-    # Return structured device details
-    return {
-        "name": device_name,
-        "manufacturer": manufacturer,
-        "mac_address": service_info.address,
-        "rssi": service_info.rssi,
-        "service_uuids": service_info.service_uuids,
-    }
 
 
 
