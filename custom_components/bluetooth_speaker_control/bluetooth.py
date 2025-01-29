@@ -1,6 +1,8 @@
 from homeassistant.components.bluetooth import async_get_scanner
 import logging
 import json
+import asyncio
+from bleak import BleakClient, BleakScanner, BleakError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ async def discover_bluetooth_devices(hass):
         if not discovered_devices:
             _LOGGER.warning("⚠️ Using fallback to scanner.discovered_devices.")
             discovered_devices = {
-                device: {"rssi": getattr(device, "rssi", -100)}  # Add at least RSSI
+                device: {"rssi": getattr(device, "rssi", -100)}
                 for device in scanner.discovered_devices
             }
 
@@ -37,7 +39,6 @@ async def discover_bluetooth_devices(hass):
 
         for device, adv_data in discovered_devices.items():
             try:
-                # Process the device and advertisement data
                 device_data = {
                     **extract_ble_device(device),
                     **extract_adv_data(adv_data),
@@ -65,7 +66,7 @@ def extract_adv_data(adv_data):
             "service_uuids": [],
             "service_data": {},
             "manufacturer_data": {},
-            "rssi": -100,  # Dummy RSSI value
+            "rssi": -100,
             "tx_power": "Unknown",
         }
 
@@ -75,7 +76,7 @@ def extract_adv_data(adv_data):
         "service_uuids": getattr(adv_data, "service_uuids", []),
         "service_data": _serialize_bytes(getattr(adv_data, "service_data", {})),
         "manufacturer_data": _serialize_bytes(getattr(adv_data, "manufacturer_data", {})),
-        "rssi": getattr(adv_data, "rssi", -100),  # Use RSSI from AdvertisementData
+        "rssi": getattr(adv_data, "rssi", -100),
         "tx_power": getattr(adv_data, "tx_power", "Unknown"),
     }
 
@@ -91,38 +92,61 @@ def extract_ble_device(device):
 def _serialize_bytes(data):
     """Convert bytearray or bytes to JSON serializable format."""
     if isinstance(data, (bytes, bytearray)):
-        return list(data)  # Convert bytearray to a list of integers
+        return list(data)
     elif isinstance(data, dict):
         return {key: _serialize_bytes(value) for key, value in data.items()}
     elif isinstance(data, list):
         return [_serialize_bytes(item) for item in data]
     return data
 
-# --- 🔗 Pairing, Connecting, Disconnecting ---
+# --- 🔗 Real Pairing, Connecting, Disconnecting using Bleak ---
 
-def pair_device(mac_address):
-    """Simulate pairing with a Bluetooth device."""
+async def pair_device(mac_address):
+    """Attempt to pair with a Bluetooth device."""
     try:
-        _LOGGER.debug(f"🔗 Simulated pairing with {mac_address}")
-        return True
-    except Exception as e:
-        _LOGGER.error(f"❌ Error pairing with {mac_address}: {e}")
+        _LOGGER.info(f"🔗 Attempting to pair with {mac_address}...")
+        devices = await BleakScanner.discover()
+        device = next((d for d in devices if d.address.lower() == mac_address.lower()), None)
+
+        if device is None:
+            _LOGGER.error(f"❌ Device {mac_address} not found. Ensure it's discoverable.")
+            return False
+
+        async with BleakClient(device.address) as client:
+            if client.is_connected:
+                _LOGGER.info(f"✅ Successfully paired with {mac_address}")
+                return True
+            else:
+                _LOGGER.error(f"❌ Pairing failed for {mac_address}")
+                return False
+    except BleakError as e:
+        _LOGGER.error(f"⚠️ Bluetooth error during pairing: {e}")
         return False
 
-def connect_device(mac_address):
-    """Simulate connecting to a Bluetooth device."""
+async def connect_device(mac_address):
+    """Attempt to connect to a Bluetooth device."""
     try:
-        _LOGGER.debug(f"🔄 Simulated connecting to {mac_address}")
-        return True
-    except Exception as e:
-        _LOGGER.error(f"❌ Error connecting to {mac_address}: {e}")
+        _LOGGER.info(f"🔄 Attempting to connect to {mac_address}...")
+        async with BleakClient(mac_address) as client:
+            await client.connect()
+            if client.is_connected:
+                _LOGGER.info(f"✅ Connected to {mac_address}")
+                return True
+            else:
+                _LOGGER.error(f"❌ Connection failed for {mac_address}")
+                return False
+    except BleakError as e:
+        _LOGGER.error(f"⚠️ Bluetooth error during connection: {e}")
         return False
 
-def disconnect_device(mac_address):
-    """Simulate disconnecting from a Bluetooth device."""
+async def disconnect_device(mac_address):
+    """Attempt to disconnect from a Bluetooth device."""
     try:
-        _LOGGER.debug(f"🔌 Simulated disconnecting from {mac_address}")
-        return True
-    except Exception as e:
-        _LOGGER.error(f"❌ Error disconnecting from {mac_address}: {e}")
+        _LOGGER.info(f"🔌 Attempting to disconnect from {mac_address}...")
+        async with BleakClient(mac_address) as client:
+            await client.disconnect()
+            _LOGGER.info(f"✅ Disconnected from {mac_address}")
+            return True
+    except BleakError as e:
+        _LOGGER.error(f"⚠️ Bluetooth error during disconnection: {e}")
         return False
