@@ -81,18 +81,24 @@ def _format_device(service_info):
     # Log everything inside service_info to check available attributes
     _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
 
-    # Extract the device's friendly name
+    # Extract the device's friendly name (fallback to MAC only if necessary)
     device_name = (
-        service_info.name or  # ✅ First try the built-in name
-        (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None)  # ✅ Correctly extract local_name
-        or service_info.address  # ✅ Fallback to MAC address only if needed
+        service_info.name or  
+        (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None) or  
+        service_info.address  
     )
 
-    # Extract the manufacturer name separately
-    manufacturer = (
-        (service_info.advertisement.manufacturer_name if hasattr(service_info, "advertisement") and service_info.advertisement else None) or
-        (service_info.manufacturer if hasattr(service_info, "manufacturer") and service_info.manufacturer else "Unknown Manufacturer")  # ✅ Store manufacturer explicitly
-    )
+    # Extract manufacturer data properly
+    manufacturer_data = service_info.manufacturer_data
+    manufacturer_id = next(iter(manufacturer_data), None)  # Get first manufacturer key
+    manufacturer_raw = manufacturer_data.get(manufacturer_id, b'')  # Get binary data
+
+    # Convert raw manufacturer data to a readable format
+    manufacturer = f"ID {manufacturer_id}" if manufacturer_id is not None else "Unknown Manufacturer"
+
+    # If name is just a MAC address, make it more user-friendly
+    if device_name == service_info.address:
+        device_name = f"Unknown Device ({service_info.address[-5:]})"
 
     # Log extracted details
     _LOGGER.info(f"🆔 Discovered Device: Name='{device_name}', Manufacturer='{manufacturer}', MAC='{service_info.address}'")
@@ -101,8 +107,11 @@ def _format_device(service_info):
     return {
         "name": device_name,
         "manufacturer": manufacturer,
-        "mac_address": service_info.address
+        "mac_address": service_info.address,
+        "rssi": service_info.rssi,
+        "service_uuids": service_info.service_uuids,
     }
+
 
 
 
