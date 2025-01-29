@@ -63,7 +63,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the step where the user names the selected device."""
         if user_input:
             _LOGGER.info(f"✅ Saving device with nickname: {user_input[CONF_NAME]}")
-            
+
             # Create a new entity for the media player
             await self._create_media_player_entity(self.selected_device, user_input[CONF_NAME])
 
