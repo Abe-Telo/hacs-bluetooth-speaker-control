@@ -18,16 +18,16 @@ async def discover_bluetooth_devices(hass):
 
         if not discovered_devices:
             _LOGGER.warning("⚠️ No advertisement data found. Using fallback to scanner.discovered_devices.")
-            discovered_devices = {
-                device: {"rssi": getattr(device, "rssi", -100)}  # Add at least RSSI
-                for device in getattr(scanner, "discovered_devices", [])
-            }
-
+            discovered_devices = {device: {"rssi": -100} for device in scanner.discovered_devices}
+                #device: {"rssi": getattr(device, "rssi", -100)}  # Add at least RSSI
+                #for device in getattr(scanner, "discovered_devices", [])
+                
         if not discovered_devices:
-            _LOGGER.warning(
-                "⚠️ No Bluetooth devices discovered. Ensure devices are in discoverable mode and within range."
-            )
+            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are in discoverable mode and within range.")
             return []
+    except Exception as e:
+        _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
+        return []
 
         device_list = []
 

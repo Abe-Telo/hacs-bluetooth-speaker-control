@@ -125,3 +125,11 @@ async def async_unload_entry(hass: HomeAssistant, entry):
     _LOGGER.info("🔵 Unloading Bluetooth Speaker Control entry")
     hass.data[DOMAIN].pop(entry.entry_id)
     return True
+
+
+MAX_STATE_LENGTH = 255  # HA state max length
+
+def truncate_state(value):
+    """Ensure state does not exceed Home Assistant's max allowed length."""
+    str_value = str(value)
+    return str_value[:MAX_STATE_LENGTH] if len(str_value) > MAX_STATE_LENGTH else str_value
