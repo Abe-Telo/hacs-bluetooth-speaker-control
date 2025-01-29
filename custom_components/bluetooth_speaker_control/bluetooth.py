@@ -4,6 +4,7 @@ import requests
 import json
 import os
 import codecs
+import base64
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
@@ -35,14 +36,17 @@ BLUETOOTH_SIG_COMPANIES = {
 MANUFACTURER_CACHE = {}
 
 def decode_device_name(name_bytes):
-    """Attempt to decode a device name from bytes."""
+    """Attempt to decode a device name from multiple encodings."""
     try:
         return name_bytes.decode("utf-8").strip()
     except UnicodeDecodeError:
         try:
-            return name_bytes.decode("latin-1").strip()
+            return name_bytes.decode("utf-16").strip()
         except UnicodeDecodeError:
-            return codecs.encode(name_bytes, 'hex').decode()
+            try:
+                return name_bytes.decode("latin-1").strip()
+            except UnicodeDecodeError:
+                return base64.b64encode(name_bytes).decode()
 
 def extract_friendly_name(service_info):
     """Extract a friendly name from available advertisement or manufacturer data."""
@@ -52,6 +56,7 @@ def extract_friendly_name(service_info):
     manufacturer_data = service_info.manufacturer_data
     if manufacturer_data:
         for key, value in manufacturer_data.items():
+            _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value}")  # Log raw data
             try:
                 decoded_name = decode_device_name(value)
                 if decoded_name and all(32 <= ord(c) < 127 for c in decoded_name):  # Ensure readable text
@@ -145,6 +150,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         clear_manufacturer_cache()
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
