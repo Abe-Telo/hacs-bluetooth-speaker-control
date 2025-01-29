@@ -57,11 +57,14 @@ def extract_friendly_name(service_info):
     if manufacturer_data:
         for key, value in manufacturer_data.items():
             hex_value = value.hex()
-            _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value} | Hex: {hex_value}")  # Log raw and hex data
+            byte_list = list(value)  # Convert to list of integers for manual analysis
+            _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value} | Hex: {hex_value} | Bytes: {byte_list}")
+            
             try:
-                decoded_name = decode_device_name(value)
-                if decoded_name and all(32 <= ord(c) < 127 for c in decoded_name):  # Ensure readable text
-                    return decoded_name
+                # Some devices prepend metadata before the name, so try extracting a substring
+                possible_name = decode_device_name(value[2:])  # Skip first two bytes (potential metadata)
+                if possible_name and all(32 <= ord(c) < 127 for c in possible_name):  # Ensure readable text
+                    return possible_name
             except Exception as e:
                 _LOGGER.debug(f"⚠️ Failed to decode manufacturer data key {key}: {e}")
                 continue
@@ -151,6 +154,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         clear_manufacturer_cache()
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
