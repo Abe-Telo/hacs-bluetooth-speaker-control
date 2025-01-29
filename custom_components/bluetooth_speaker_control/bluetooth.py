@@ -7,42 +7,40 @@ _LOGGER = logging.getLogger(__name__)
 async def discover_bluetooth_devices(hass):
     """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
+        _LOGGER.info("🔍 Initiating Bluetooth discovery...")
+
         # Get the Bluetooth scanner
         scanner = async_get_scanner(hass)
         if not scanner:
-            _LOGGER.error("❌ Bluetooth scanner unavailable. Ensure the Bluetooth integration is set up correctly.")
+            _LOGGER.error("❌ Bluetooth scanner is unavailable. Ensure the Bluetooth integration is set up correctly.")
             return []
 
-        # Attempt to use discovered_devices_and_advertisement_data if available
+        # Attempt to use the preferred discovery method first
         discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
-
+        
         if not discovered_devices:
             _LOGGER.warning("⚠️ No advertisement data found. Using fallback to scanner.discovered_devices.")
-            discovered_devices = {device: {"rssi": -100} for device in scanner.discovered_devices}
-                #device: {"rssi": getattr(device, "rssi", -100)}  # Add at least RSSI
-                #for device in getattr(scanner, "discovered_devices", [])
-                
+            discovered_devices = {
+                device: {"rssi": -100} for device in scanner.discovered_devices  # Assign default RSSI value
+            }
+
         if not discovered_devices:
             _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are in discoverable mode and within range.")
             return []
-    except Exception as e:
-        _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
-        return []
 
         device_list = []
-
-        _LOGGER.info(f"🔍 Found {len(discovered_devices)} Bluetooth devices.")
+        _LOGGER.info(f"✅ Found {len(discovered_devices)} Bluetooth devices.")
 
         for device, adv_data in discovered_devices.items():
             try:
-                # Process the device and advertisement data
+                # Extract advertisement data and device details
                 device_data = {
                     **extract_ble_device(device),
                     **extract_adv_data(adv_data),
                 }
                 device_list.append(device_data)
 
-                # Log the discovered device for debugging
+                # Log discovered device for debugging
                 _LOGGER.debug("📡 Device discovered: %s", json.dumps(device_data, indent=4))
 
             except Exception as e:
@@ -53,7 +51,6 @@ async def discover_bluetooth_devices(hass):
     except Exception as e:
         _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
         return []
-
 
 def extract_adv_data(adv_data):
     """Extract attributes from AdvertisementData safely."""
@@ -78,7 +75,6 @@ def extract_adv_data(adv_data):
         "tx_power": getattr(adv_data, "tx_power", "Unknown"),
     }
 
-
 def extract_ble_device(device):
     """Extract attributes from BLEDevice safely."""
     return {
@@ -87,7 +83,6 @@ def extract_ble_device(device):
         "details": str(getattr(device, "details", {})),
         "id": getattr(device, "id", "Unknown"),
     }
-
 
 def _serialize_bytes(data):
     """Convert bytearray or bytes to JSON serializable format."""
@@ -99,59 +94,34 @@ def _serialize_bytes(data):
         return [_serialize_bytes(item) for item in data]
     return data
 
-
-
-
-
-
 # --- 🔗 Real Pairing, Connecting, Disconnecting using Bleak ---
 
-async def pair_device(mac_address):
-    """Attempt to pair with a Bluetooth device."""
+def pair_device(mac_address):
+    """Simulate pairing with a Bluetooth device."""
     try:
-        _LOGGER.info(f"🔗 Attempting to pair with {mac_address}...")
-        devices = await BleakScanner.discover()
-        device = next((d for d in devices if d.address.lower() == mac_address.lower()), None)
-
-        if device is None:
-            _LOGGER.error(f"❌ Device {mac_address} not found. Ensure it's discoverable.")
-            return False
-
-        async with BleakClient(device.address) as client:
-            if client.is_connected:
-                _LOGGER.info(f"✅ Successfully paired with {mac_address}")
-                return True
-            else:
-                _LOGGER.error(f"❌ Pairing failed for {mac_address}")
-                return False
-    except BleakError as e:
-        _LOGGER.error(f"⚠️ Bluetooth error during pairing: {e}")
+        # Replace this with actual pairing logic
+        _LOGGER.debug(f"Simulated pairing with {mac_address}")
+        return True
+    except Exception as e:
+        _LOGGER.error(f"Error pairing with {mac_address}: {e}")
         return False
 
-async def connect_device(mac_address):
-    """Attempt to connect to a Bluetooth device."""
+def connect_device(mac_address):
+    """Simulate connecting to a Bluetooth device."""
     try:
-        _LOGGER.info(f"🔄 Attempting to connect to {mac_address}...")
-        async with BleakClient(mac_address) as client:
-            await client.connect()
-            if client.is_connected:
-                _LOGGER.info(f"✅ Connected to {mac_address}")
-                return True
-            else:
-                _LOGGER.error(f"❌ Connection failed for {mac_address}")
-                return False
-    except BleakError as e:
-        _LOGGER.error(f"⚠️ Bluetooth error during connection: {e}")
+        # Replace this with actual connection logic
+        _LOGGER.debug(f"Simulated connecting to {mac_address}")
+        return True
+    except Exception as e:
+        _LOGGER.error(f"Error connecting to {mac_address}: {e}")
         return False
 
-async def disconnect_device(mac_address):
-    """Attempt to disconnect from a Bluetooth device."""
+def disconnect_device(mac_address):
+    """Simulate disconnecting from a Bluetooth device."""
     try:
-        _LOGGER.info(f"🔌 Attempting to disconnect from {mac_address}...")
-        async with BleakClient(mac_address) as client:
-            await client.disconnect()
-            _LOGGER.info(f"✅ Disconnected from {mac_address}")
-            return True
-    except BleakError as e:
-        _LOGGER.error(f"⚠️ Bluetooth error during disconnection: {e}")
+        # Replace this with actual disconnection logic
+        _LOGGER.debug(f"Simulated disconnecting from {mac_address}")
+        return True
+    except Exception as e:
+        _LOGGER.error(f"Error disconnecting from {mac_address}: {e}")
         return False
