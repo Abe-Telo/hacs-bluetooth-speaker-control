@@ -75,6 +75,21 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
     return discovered_devices
 
 
+# Bluetooth SIG Company Identifiers (Partial List, Expand as Needed)
+BLUETOOTH_SIG_COMPANIES = {
+    6: "Microsoft",
+    76: "Apple, Inc.",
+    89: "Garmin International, Inc.",
+    117: "Google",
+    152: "Samsung Electronics Co. Ltd.",
+    4096: "Sony Corporation",
+    4961: "Bose Corporation",
+    1177: "Logitech Inc.",
+    3052: "Fitbit, Inc.",
+    6171: "Meta Platforms, Inc.",
+    # Add more manufacturers as needed
+}
+
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
 
@@ -93,8 +108,8 @@ def _format_device(service_info):
     manufacturer_id = next(iter(manufacturer_data), None)  # Get first manufacturer key
     manufacturer_raw = manufacturer_data.get(manufacturer_id, b'')  # Get binary data
 
-    # Convert raw manufacturer data to a readable format
-    manufacturer = f"ID {manufacturer_id}" if manufacturer_id is not None else "Unknown Manufacturer"
+    # Convert manufacturer ID to a readable format
+    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
 
     # If name is just a MAC address, make it more user-friendly
     if device_name == service_info.address:
@@ -111,6 +126,7 @@ def _format_device(service_info):
         "rssi": service_info.rssi,
         "service_uuids": service_info.service_uuids,
     }
+
 
 
 
