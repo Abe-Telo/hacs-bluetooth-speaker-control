@@ -1,71 +1,145 @@
 import logging
 import asyncio
 from homeassistant.components.bluetooth import (
-    async_get_scanner,
-    async_register_callback,
+    async_get_discovered_devices,
+    async_start_scanning,
     BluetoothChange,
 )
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.event import async_call_later
+from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-SCAN_TIMEOUT = 10  # Time in seconds for scanning
-
 async def discover_bluetooth_devices(hass: HomeAssistant):
-    """Discover Bluetooth devices using Home Assistant's Bluetooth API."""
-    _LOGGER.info("🔍 Starting Bluetooth device discovery using HA API.")
+    """Discover Bluetooth devices using Home Assistant's Bluetooth integration."""
+    _LOGGER.info("🔍 Starting Bluetooth device discovery...")
 
-    scanner = async_get_scanner(hass)
-    if not scanner:
-        _LOGGER.error("❌ No Bluetooth scanner available. Ensure Bluetooth integration is active.")
-        return []
+    devices = []
+    passive_scan_enabled = hass.data.get("bluetooth", {}).get("passive_scan", False)
 
-    discovered_devices = {}
+    if passive_scan_enabled:
+        _LOGGER.info("🟢 Passive Scanning is ON. Listening for advertisements...")
 
-    @callback
-    def device_found(device, advertisement_data, change):
-        """Callback for discovered Bluetooth devices."""
-        mac_address = device.address
-        if mac_address not in discovered_devices:
-            discovered_devices[mac_address] = {
-                "mac": mac_address,
-                "name": device.name or "Unknown Device",
-                "rssi": advertisement_data.rssi if advertisement_data else None,
-                "service_uuids": advertisement_data.service_uuids if advertisement_data else [],
+        def device_found(device, change: BluetoothChange):
+            """Callback function for discovered devices."""
+            _LOGGER.debug(f"📡 Found Bluetooth Device: {device}, Change: {change}")
+            devices.append({
+                "mac": device.address,
+                "name": device.name or "Unknown",
+                "rssi": getattr(device, "rssi", -100),
+                "service_uuids": device.service_uuids,
+            })
+
+        # Register callback for new advertisements
+        async_start_scanning(hass, device_found)
+
+        # Wait for devices to be discovered
+        await asyncio.sleep(10)  # Allow some time to collect advertisements
+
+    else:
+        _LOGGER.warning("⚠️ Passive Scanning is OFF. Using manual scan.")
+
+        discovered = async_get_discovered_devices(hass)
+        if discovered:
+            _LOGGER.info(f"✅ Found {len(discovered)} devices via manual scan.")
+            for device in discovered:
+                devices.append({
+                    "mac": device.address,
+                    "name": device.name or "Unknown",
+                    "rssi": getattr(device, "rssi", -100),
+                    "service_uuids": device.service_uuids,
+                })
+        else:
+            _LOGGER.warning("⚠️ No Bluetooth devices found during manual scan.")
+
+    return devices
+
+
+def _process_discovered_devices(discovered_devices):
+    """Processes and formats discovered Bluetooth devices."""
+    device_list = []
+    _LOGGER.info(f"✅ Found {len(discovered_devices)} Bluetooth devices.")
+
+    for device, adv_data in discovered_devices.items():
+        try:
+            device_data = {
+                **extract_ble_device(device),
+                **extract_adv_data(adv_data),
             }
-            _LOGGER.info(f"📡 Found Bluetooth device: {discovered_devices[mac_address]}")
+            device_list.append(device_data)
 
-    # Register callback for Bluetooth scanning
-    stop_callback = async_register_callback(
-        hass, device_found, {"advertisement": True}, BluetoothChange.ADVERTISEMENT
-    )
+            _LOGGER.debug("📡 Device discovered: %s", json.dumps(device_data, indent=4))
 
-    # Wait for scan duration
-    await asyncio.sleep(SCAN_TIMEOUT)
+        except Exception as e:
+            _LOGGER.error(f"⚠️ Error processing device {device}: {e}")
 
-    # Stop scanning
-    stop_callback()
+    return device_list
 
-    _LOGGER.info(f"✅ Completed scan, found {len(discovered_devices)} devices.")
+def extract_adv_data(adv_data):
+    """Extract attributes from AdvertisementData safely."""
+    if adv_data is None:
+        return {
+            "local_name": "Unknown",
+            "manufacturer": "Unknown",
+            "service_uuids": [],
+            "service_data": {},
+            "manufacturer_data": {},
+            "rssi": -100,
+            "tx_power": "Unknown",
+        }
 
-    return list(discovered_devices.values())
+    return {
+        "local_name": getattr(adv_data, "local_name", "Unknown"),
+        "manufacturer": getattr(adv_data, "manufacturer", "Unknown"),
+        "service_uuids": getattr(adv_data, "service_uuids", []),
+        "service_data": _serialize_bytes(getattr(adv_data, "service_data", {})),
+        "manufacturer_data": _serialize_bytes(getattr(adv_data, "manufacturer_data", {})),
+        "rssi": getattr(adv_data, "rssi", -100),
+        "tx_power": getattr(adv_data, "tx_power", "Unknown"),
+    }
 
-async def pair_device(mac_address):
-    """Pair with a Bluetooth device (stub, requires additional implementation)."""
-    _LOGGER.info(f"🔗 Attempting to pair with {mac_address}")
-    # Pairing logic goes here (requires additional implementation)
-    return True
+def extract_ble_device(device):
+    """Extract attributes from BLEDevice safely."""
+    return {
+        "name": getattr(device, "name", "Unknown"),
+        "mac": getattr(device, "address", "Unknown"),
+        "details": str(getattr(device, "details", {})),
+        "id": getattr(device, "id", "Unknown"),
+    }
 
-async def connect_device(mac_address):
-    """Connect to a Bluetooth device (stub, requires additional implementation)."""
-    _LOGGER.info(f"🎵 Attempting to connect to {mac_address}")
-    # Connection logic goes here (requires additional implementation)
-    return True
+def _serialize_bytes(data):
+    """Convert bytearray or bytes to JSON serializable format."""
+    if isinstance(data, (bytes, bytearray)):
+        return list(data)
+    elif isinstance(data, dict):
+        return {key: _serialize_bytes(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_serialize_bytes(item) for item in data]
+    return data
 
-async def disconnect_device(mac_address):
-    """Disconnect from a Bluetooth device (stub, requires additional implementation)."""
-    _LOGGER.info(f"🔇 Attempting to disconnect from {mac_address}")
-    # Disconnection logic goes here (requires additional implementation)
-    return True
+def pair_device(mac_address):
+    """Simulate pairing with a Bluetooth device."""
+    try:
+        _LOGGER.debug(f"Simulated pairing with {mac_address}")
+        return True
+    except Exception as e:
+        _LOGGER.error(f"Error pairing with {mac_address}: {e}")
+        return False
+
+def connect_device(mac_address):
+    """Simulate connecting to a Bluetooth device."""
+    try:
+        _LOGGER.debug(f"Simulated connecting to {mac_address}")
+        return True
+    except Exception as e:
+        _LOGGER.error(f"Error connecting to {mac_address}: {e}")
+        return False
+
+def disconnect_device(mac_address):
+    """Simulate disconnecting from a Bluetooth device."""
+    try:
+        _LOGGER.debug(f"Simulated disconnecting from {mac_address}")
+        return True
+    except Exception as e:
+        _LOGGER.error(f"Error disconnecting from {mac_address}: {e}")
+        return False
