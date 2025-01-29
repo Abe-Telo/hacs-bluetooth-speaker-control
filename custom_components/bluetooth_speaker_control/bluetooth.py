@@ -26,7 +26,7 @@ async def scan_bluetooth_devices(hass):
     return list(all_results.values())  # Convert back to a list
 
 
-async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
+async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
     """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
     _LOGGER.info(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
 
