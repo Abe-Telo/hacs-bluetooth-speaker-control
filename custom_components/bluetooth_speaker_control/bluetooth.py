@@ -54,9 +54,10 @@ def extract_friendly_name(service_info):
         for key, value in manufacturer_data.items():
             try:
                 decoded_name = decode_device_name(value)
-                if decoded_name:
+                if decoded_name and all(32 <= ord(c) < 127 for c in decoded_name):  # Ensure readable text
                     return decoded_name
-            except Exception:
+            except Exception as e:
+                _LOGGER.debug(f"⚠️ Failed to decode manufacturer data key {key}: {e}")
                 continue
     
     return None
@@ -73,6 +74,9 @@ def _format_device(service_info):
     manufacturer_data = service_info.manufacturer_data
     manufacturer_id = next(iter(manufacturer_data), None)
     manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
+    
+    if device_name == service_info.address:
+        device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
     
     _LOGGER.info(f"🆔 Discovered Device: Name='{device_name}', Manufacturer='{manufacturer}', MAC='{service_info.address}'")
     
@@ -141,6 +145,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         clear_manufacturer_cache()
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
