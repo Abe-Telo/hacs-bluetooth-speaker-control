@@ -1,47 +1,67 @@
-import logging
 from homeassistant.components.bluetooth import async_get_scanner
-import json
+import logging
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__) 
 
 async def discover_bluetooth_devices(hass):
-    """Discover all nearby Bluetooth devices and log raw data."""
+    """Discover nearby Bluetooth devices using Home Assistant's Bluetooth integration."""
     try:
         scanner = async_get_scanner(hass)
         if not scanner:
-            _LOGGER.error("❌ Bluetooth scanner is unavailable. Ensure the Bluetooth integration is set up correctly.")
+            _LOGGER.error("Bluetooth scanner not available.")
             return []
 
-        # Attempt to use discovered_devices_and_advertisement_data
-        discovered_devices = getattr(scanner, "discovered_devices_and_advertisement_data", None)
-
-        if not discovered_devices:
-            _LOGGER.warning("⚠️ Using fallback to scanner.discovered_devices.")
-            discovered_devices = {
-                device: {"rssi": getattr(device, "rssi", -100)}  # Add at least RSSI
-                for device in scanner.discovered_devices
-            }
-
-        if not discovered_devices:
-            _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are in discoverable mode.")
-            return []
-
-        # Log EVERYTHING in raw format
-        _LOGGER.info("📡 RAW DISCOVERY DATA:\n%s", json.dumps(discovered_devices, indent=4, default=str))
-
-        # Store the data to return it
+        devices = scanner.discovered_devices
         device_list = []
-        for device, adv_data in discovered_devices.items():
-            device_data = {
-                "device_raw": str(device),  # Store raw device info
-                "adv_raw": str(adv_data),  # Store raw advertisement info
-            }
-            device_list.append(device_data)
+
+        for device in devices:
+            # Default values
+            device_type = "Unknown"
+            icon = "🔵"  # Default Bluetooth icon
+            manufacturer = "Unknown"
+            rssi = getattr(device, "rssi", "Unknown")
+            uuids = getattr(device, "service_uuids", [])
+
+            # Use name-based detection to assign type and icons
+            name_lower = device.name.lower() if device.name else ""
+
+            if "headphone" in name_lower:
+                device_type = "Headphone"
+                icon = "🎧"
+            elif "speaker" in name_lower or "music" in name_lower:
+                device_type = "Speaker"
+                icon = "🔊"
+            elif "tv" in name_lower or "display" in name_lower:
+                device_type = "TV"
+                icon = "📺"
+            elif "phone" in name_lower or "mobile" in name_lower:
+                device_type = "Phone"
+                icon = "📱"
+            elif "watch" in name_lower or "wearable" in name_lower:
+                device_type = "Wearable"
+                icon = "⌚"
+            elif "keyboard" in name_lower:
+                device_type = "Keyboard"
+                icon = "⌨️"
+            elif "mouse" in name_lower:
+                device_type = "Mouse"
+                icon = "🖱️"
+
+            # Construct device dictionary
+            device_list.append({
+                "name": device.name or "Unknown",
+                "mac": device.address,
+                "type": device_type,
+                "icon": icon,  # Store the correct icon for later use
+                "rssi": rssi,
+                "manufacturer": manufacturer,
+                "uuids": uuids,
+            })
 
         return device_list
 
     except Exception as e:
-        _LOGGER.error(f"🔥 Error during Bluetooth discovery: {e}")
+        _LOGGER.error(f"Error discovering Bluetooth devices using Home Assistant API: {e}")
         return []
 
 
