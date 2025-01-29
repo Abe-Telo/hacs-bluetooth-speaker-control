@@ -81,24 +81,29 @@ def _format_device(service_info):
     # Log everything inside service_info to check available attributes
     _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
 
-    # Extract name correctly
+    # Extract the device's friendly name
     device_name = (
-        service_info.name  # ✅ First try the built-in name
-        or (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None)  # ✅ Correctly extract local_name
-        or (service_info.advertisement.manufacturer_name if hasattr(service_info, "advertisement") and service_info.advertisement else None)  # ✅ Try manufacturer_name
-        or (service_info.manufacturer if hasattr(service_info, "manufacturer") and service_info.manufacturer else None)  # ✅ Manufacturer as last fallback
-        or (service_info.address if ":" in service_info.address else "Unknown")  # ✅ Fallback to MAC only if needed
+        service_info.name or  # ✅ First try the built-in name
+        (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None)  # ✅ Correctly extract local_name
+        or service_info.address  # ✅ Fallback to MAC address only if needed
     )
 
-    # Log the extracted device name for debugging
-    _LOGGER.info(f"🔍 Extracted Device Name: {device_name} for {service_info.address}")
+    # Extract the manufacturer name separately
+    manufacturer = (
+        (service_info.advertisement.manufacturer_name if hasattr(service_info, "advertisement") and service_info.advertisement else None) or
+        (service_info.manufacturer if hasattr(service_info, "manufacturer") and service_info.manufacturer else "Unknown Manufacturer")  # ✅ Store manufacturer explicitly
+    )
 
+    # Log extracted details
+    _LOGGER.info(f"🆔 Discovered Device: Name='{device_name}', Manufacturer='{manufacturer}', MAC='{service_info.address}'")
+
+    # Return structured device details
     return {
         "name": device_name,
-        "mac": service_info.address,
-        "rssi": getattr(service_info, "rssi", -100),
-        "service_uuids": service_info.service_uuids or [],
+        "manufacturer": manufacturer,
+        "mac_address": service_info.address
     }
+
 
 
 
