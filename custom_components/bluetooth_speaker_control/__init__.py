@@ -13,7 +13,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async def send_notification(title, message):
         """Send a persistent notification to Home Assistant UI."""
-        hass.services.async_call(
+        await hass.services.async_call(  # ✅ Fixed missing 'await'
             "persistent_notification",
             "create",
             {"title": title, "message": message, "notification_id": f"{DOMAIN}_notification"},
@@ -70,6 +70,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def handle_scan_devices(call: ServiceCall):
         """Handle scanning for Bluetooth devices."""
         _LOGGER.info("🔍 Scanning for Bluetooth devices...")
+
         try:
             devices = await discover_bluetooth_devices(hass)
 
@@ -91,6 +92,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                     "Bluetooth Scan Complete",
                     f"Discovered {len(devices)} Bluetooth devices. Check logs for details.",
                 )
+
         except Exception as e:
             _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
             await send_notification("Bluetooth Scan Error", f"An error occurred: {e}")
