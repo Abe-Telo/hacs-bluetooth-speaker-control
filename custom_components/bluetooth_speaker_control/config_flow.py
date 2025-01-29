@@ -24,6 +24,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         _LOGGER.info("🔍 Starting Bluetooth device discovery (config_flow).")
+
         try:
             self.discovered_devices = await discover_bluetooth_devices(self.hass)
             _LOGGER.info(f"✅ Discovered devices: {self.discovered_devices}")
@@ -31,6 +32,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.error(f"🔥 Error during device discovery: {e}")
             errors["base"] = "discovery_failed"
 
+        # If user input is provided
         if user_input:
             selected_mac = user_input.get(CONF_MAC_ADDRESS)
 
@@ -38,6 +40,7 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.error("❌ Invalid selection: No device selected.")
                 errors["base"] = "invalid_selection"
             else:
+                # Find selected device
                 self.selected_device = next(
                     (device for device in self.discovered_devices if device["mac"] == selected_mac),
                     None,
@@ -49,13 +52,21 @@ class BluetoothSpeakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     _LOGGER.error(f"❌ Selected MAC address {selected_mac} not found in discovered devices.")
                     errors["base"] = "device_not_found"
 
+        # If no devices are found, prevent the user from proceeding
         if not self.discovered_devices:
             _LOGGER.warning("⚠️ No Bluetooth devices discovered. Ensure devices are powered on and in range.")
             errors["base"] = "no_devices_found"
+            return self.async_show_form(
+                step_id="user",
+                data_schema=self._get_device_schema(no_devices=True),
+                errors=errors,
+            )
+
+        _LOGGER.info(f"✅ Discovered {len(self.discovered_devices)} devices.")
 
         return self.async_show_form(
             step_id="user",
-            data_schema=self._get_device_schema(no_devices=not self.discovered_devices),
+            data_schema=self._get_device_schema(),
             errors=errors,
         )
 
