@@ -17,7 +17,11 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
     def device_found(service_info, change: BluetoothChange):
         """Callback when a device is found."""
         
-        device_name = getattr(service_info, "name", None) or getattr(service_info, "local_name", None) or "Unknown"
+        device_name = (
+            getattr(service_info, "name", None)
+            or getattr(service_info.advertisement, "local_name", None)
+            or "Unknown"
+        )
         device = {
             "name": device_name,
             "mac": service_info.address,
@@ -36,7 +40,7 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
         stop_scan = async_register_callback(
             hass,
             device_found,
-            match_dict={},  # ✅ Required parameter
+            match_dict={},  # ✅ Ensures all devices are matched
             mode=scan_mode  # ✅ Dynamically switch scanning mode
         )
 
@@ -44,7 +48,7 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
         await asyncio.sleep(timeout)  # ✅ Wait for scan to complete
 
         _LOGGER.info("🛑 Stopping Bluetooth scan...")
-        stop_scan()  # ✅ Properly stopping scan
+        hass.loop.call_soon_threadsafe(stop_scan)  # ✅ Ensures stop_scan() runs safely
 
     except Exception as e:
         _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
@@ -53,6 +57,7 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
         _LOGGER.warning("⚠️ No Bluetooth devices found.")
 
     return discovered_devices
+
 
 
 
