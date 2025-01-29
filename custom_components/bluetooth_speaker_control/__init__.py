@@ -7,17 +7,62 @@ import logging
 DOMAIN = "bluetooth_speaker_control"
 _LOGGER = logging.getLogger(__name__)
 
+MAX_STATE_LENGTH = 255  # Home Assistant's max entity state length
+
+def truncate_state(value):
+    """Ensure state does not exceed Home Assistant's max allowed length."""
+    str_value = str(value)
+    return str_value[:MAX_STATE_LENGTH] if len(str_value) > MAX_STATE_LENGTH else str_value
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Bluetooth Speaker Control integration."""
     _LOGGER.info("🔵 Initializing Bluetooth Speaker Control integration")
 
     async def send_notification(title, message):
         """Send a persistent notification to Home Assistant UI."""
-        await hass.services.async_call(  # ✅ FIXED: Await is required
+        await hass.services.async_call(
             "persistent_notification",
             "create",
             {"title": title, "message": message, "notification_id": f"{DOMAIN}_notification"},
         )
+
+    async def handle_scan_devices(call: ServiceCall):
+        """Handle scanning for Bluetooth devices."""
+        _LOGGER.info("🔍 Scanning for Bluetooth devices...")
+
+        try:
+            devices = await discover_bluetooth_devices(hass)
+
+            # Detect if Passive Scanning is ON or OFF
+            passive_scanning = any(device.get("rssi") != -100 for device in devices)
+            if passive_scanning:
+                _LOGGER.info("🟢 Passive Scanning is ON.")
+            else:
+                _LOGGER.warning("⚠️ Passive Scanning is OFF. Using fallback scanning.")
+
+            if not devices:
+                _LOGGER.warning("⚠️ No Bluetooth devices found during scan.")
+                await send_notification("Bluetooth Scan", "No Bluetooth devices found.")
+                return
+
+            _LOGGER.info(f"✅ Found {len(devices)} Bluetooth devices.")
+            for device in devices:
+                _LOGGER.info(f"📡 Discovered: {device}")
+
+            # Fire event with scan results
+            hass.bus.async_fire("bluetooth_device_discovered", {"devices": devices})
+
+            # Store list of devices in HA state (Truncate to prevent 500 error)
+            hass.states.async_set(f"{DOMAIN}.device_list", truncate_state(str(devices)))
+
+            await send_notification(
+                "Bluetooth Scan Complete",
+                f"Discovered {len(devices)} Bluetooth devices. Check logs for details.",
+            )
+
+        except Exception as e:
+            _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
+            await send_notification("Bluetooth Scan Error", f"An error occurred: {e}")
 
     async def handle_pair_speaker(call: ServiceCall):
         """Handle pairing a Bluetooth speaker."""
@@ -33,7 +78,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         await send_notification("Bluetooth Pairing", status)
 
         hass.bus.async_fire("bluetooth_speaker_paired", {"mac_address": mac_address, "status": success})
-        hass.states.async_set(f"{DOMAIN}.pair_status", status)
+        hass.states.async_set(f"{DOMAIN}.pair_status", truncate_state(status))
 
     async def handle_connect_speaker(call: ServiceCall):
         """Handle connecting to a Bluetooth speaker."""
@@ -49,7 +94,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         await send_notification("Bluetooth Connection", status)
 
         hass.bus.async_fire("bluetooth_speaker_connected", {"mac_address": mac_address, "status": success})
-        hass.states.async_set(f"{DOMAIN}.connect_status", status)
+        hass.states.async_set(f"{DOMAIN}.connect_status", truncate_state(status))
 
     async def handle_disconnect_speaker(call: ServiceCall):
         """Handle disconnecting from a Bluetooth speaker."""
@@ -65,37 +110,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         await send_notification("Bluetooth Disconnection", status)
 
         hass.bus.async_fire("bluetooth_speaker_disconnected", {"mac_address": mac_address, "status": success})
-        hass.states.async_set(f"{DOMAIN}.disconnect_status", status)
-
-    async def handle_scan_devices(call: ServiceCall):
-        """Handle scanning for Bluetooth devices."""
-        _LOGGER.info("🔍 Scanning for Bluetooth devices...")
-
-        try:
-            devices = await discover_bluetooth_devices(hass)
-
-            if not devices:
-                _LOGGER.warning("⚠️ No Bluetooth devices found during scan.")
-                await send_notification("Bluetooth Scan", "No Bluetooth devices found.")
-            else:
-                _LOGGER.info(f"✅ Found {len(devices)} Bluetooth devices.")
-                for device in devices:
-                    _LOGGER.info(f"📡 Discovered: {device}")
-
-                # Fire event with scan results
-                hass.bus.async_fire("bluetooth_device_discovered", {"devices": devices})
-
-                # Store list of devices in HA state
-                hass.states.async_set(f"{DOMAIN}.device_list", str(devices))
-
-                await send_notification(
-                    "Bluetooth Scan Complete",
-                    f"Discovered {len(devices)} Bluetooth devices. Check logs for details.",
-                )
-
-        except Exception as e:
-            _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
-            await send_notification("Bluetooth Scan Error", f"An error occurred: {e}")
+        hass.states.async_set(f"{DOMAIN}.disconnect_status", truncate_state(status))
 
     # Register services
     hass.services.async_register(DOMAIN, "pair_speaker", handle_pair_speaker)
@@ -107,7 +122,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def startup_scan(event):
         """Scan for Bluetooth devices when Home Assistant starts."""
         _LOGGER.info("🔄 Running initial Bluetooth scan on startup...")
-        await handle_scan_devices(ServiceCall(DOMAIN, "scan_devices", {}))  # ✅ FIXED ServiceCall format
+        await handle_scan_devices(ServiceCall(DOMAIN, "scan_devices", {}))
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, startup_scan)
 
@@ -125,11 +140,3 @@ async def async_unload_entry(hass: HomeAssistant, entry):
     _LOGGER.info("🔵 Unloading Bluetooth Speaker Control entry")
     hass.data[DOMAIN].pop(entry.entry_id)
     return True
-
-
-MAX_STATE_LENGTH = 255  # HA state max length
-
-def truncate_state(value):
-    """Ensure state does not exceed Home Assistant's max allowed length."""
-    str_value = str(value)
-    return str_value[:MAX_STATE_LENGTH] if len(str_value) > MAX_STATE_LENGTH else str_value
