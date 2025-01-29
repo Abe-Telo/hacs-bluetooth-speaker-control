@@ -18,10 +18,10 @@ _LOGGER = logging.getLogger(__name__)
 
 async def scan_bluetooth_devices(hass):
     """Run both Active and Passive scans and merge results."""
-    _LOGGER.info("🔄 Running Active Scan...")
+    _LOGGER.debug("🔄 Running Active Scan...")
     active_results = await discover_bluetooth_devices(hass, timeout=10, passive_scanning=False)
 
-    _LOGGER.info("🔄 Running Passive Scan...")
+    _LOGGER.debug("🔄 Running Passive Scan...")
     passive_results = await discover_bluetooth_devices(hass, timeout=10, passive_scanning=True)
 
     all_results = {device["mac"]: device for device in active_results + passive_results}
@@ -31,10 +31,11 @@ async def scan_bluetooth_devices(hass):
 
 async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
     """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
-    _LOGGER.info(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
+    _LOGGER.debug(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
     discovered_devices = []
 
     for service_info in async_discovered_service_info(hass):
+        _LOGGER.debug(f"📡 Service Info: {service_info}")
         discovered_devices.append(_format_device(service_info))
 
     if discovered_devices:
@@ -46,15 +47,15 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
         device = _format_device(service_info)
         if device not in discovered_devices:
             discovered_devices.append(device)
-            _LOGGER.info(f"📡 Found Bluetooth device: {device}")
+            _LOGGER.debug(f"📡 Found Bluetooth device: {device}")
 
     try:
-        _LOGGER.info("📡 Registering Bluetooth scan callback...")
+        _LOGGER.debug("📡 Registering Bluetooth scan callback...")
         scan_mode = BluetoothScanningMode.PASSIVE if passive_scanning else BluetoothScanningMode.ACTIVE
         stop_scan = async_register_callback(hass, device_found, match_dict={}, mode=scan_mode)
-        _LOGGER.info(f"⏳ Waiting {timeout} seconds for scan results...")
+        _LOGGER.debug(f"⏳ Waiting {timeout} seconds for scan results...")
         await asyncio.sleep(timeout)
-        _LOGGER.info("🛑 Stopping Bluetooth scan...")
+        _LOGGER.debug("🛑 Stopping Bluetooth scan...")
         hass.loop.call_soon_threadsafe(stop_scan)
     except Exception as e:
         _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
@@ -118,6 +119,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         clear_manufacturer_cache()
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
