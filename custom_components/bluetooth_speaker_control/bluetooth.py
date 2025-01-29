@@ -2,7 +2,7 @@ import logging
 import asyncio
 from homeassistant.components.bluetooth import (
     async_register_callback,
-    async_discovered_service_info,   
+    async_discovered_service_info,  # ✅ Use built-in discovery instead of direct scanning
     BluetoothScanningMode,
     BluetoothChange,
 )
@@ -59,12 +59,19 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=False):
 
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
+    device_name = (
+        getattr(service_info, "name", None)  # First try service_info.name
+        or getattr(service_info.advertisement, "local_name", None)  # Check local_name
+        or "Unknown"  # Default fallback
+    )
+
     return {
-        "name": service_info.name or "Unknown",
+        "name": device_name,
         "mac": service_info.address,
         "rssi": getattr(service_info, "rssi", -100),
         "service_uuids": service_info.service_uuids or [],
     }
+
 
 
 
