@@ -44,15 +44,28 @@ def decode_device_name(name_bytes):
         except UnicodeDecodeError:
             return codecs.encode(name_bytes, 'hex').decode()
 
+def extract_friendly_name(service_info):
+    """Extract a friendly name from available advertisement or manufacturer data."""
+    if service_info.advertisement and hasattr(service_info.advertisement, "local_name"):
+        return service_info.advertisement.local_name
+    
+    manufacturer_data = service_info.manufacturer_data
+    if manufacturer_data:
+        for key, value in manufacturer_data.items():
+            try:
+                decoded_name = decode_device_name(value)
+                if decoded_name:
+                    return decoded_name
+            except Exception:
+                continue
+    
+    return None
+
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
     _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
     
-    device_name = (
-        service_info.name or  
-        (service_info.advertisement.local_name if hasattr(service_info, "advertisement") and service_info.advertisement else None) or  
-        service_info.address  
-    )
+    device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
     
     if isinstance(device_name, bytes):
         device_name = decode_device_name(device_name)
@@ -128,6 +141,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         clear_manufacturer_cache()
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
