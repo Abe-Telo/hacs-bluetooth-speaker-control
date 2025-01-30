@@ -79,8 +79,8 @@ def _format_device(service_info):
     #  Manfacture Test
     _LOGGER.debug(f"🔍 Raw Manufacturer Data Hex: {service_info.manufacturer_data}") 
     #_LOGGER.debug(f"📡 Full Service Info as_dict(): {json.dumps(serialize_service_info(service_info), indent=2)}")
-    _LOGGER.debug(f"🔍 Full Raw Manufacturer Data: {value.hex()}")
-    _LOGGER.debug(f"🔍 Manufacturer Data Type: {type(value)}")
+    #_LOGGER.debug(f"🔍 Full Raw Manufacturer Data: {value.hex()}")
+    #_LOGGER.debug(f"🔍 Manufacturer Data Type: {type(value)}")
 
 
 
