@@ -29,6 +29,9 @@ BLUETOOTH_SIG_COMPANIES = {
 
 def decode_device_name(name_bytes):
     """Attempt to decode a device name from multiple encodings."""
+    if not name_bytes or len(name_bytes) < 2:
+        return None
+
     for encoding in ("utf-8", "utf-16", "latin-1"):
         try:
             decoded = name_bytes.decode(encoding).strip()
@@ -36,21 +39,22 @@ def decode_device_name(name_bytes):
                 return decoded
         except UnicodeDecodeError:
             continue
+
     return base64.b64encode(name_bytes).decode()
 
 def extract_friendly_name(service_info):
     """Extract a friendly name from available advertisement or manufacturer data."""
-    if service_info.advertisement and hasattr(service_info.advertisement, "local_name"):
-        if service_info.advertisement.local_name:
+    if hasattr(service_info, "advertisement") and service_info.advertisement:
+        if hasattr(service_info.advertisement, "local_name") and service_info.advertisement.local_name:
             return service_info.advertisement.local_name.strip()
     
     manufacturer_data = service_info.manufacturer_data
     if manufacturer_data:
         for key, value in manufacturer_data.items():
-            _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value.hex()}")
-            possible_name = decode_device_name(value[2:])
-            if possible_name:
-                return possible_name
+            if len(value) > 2:  # Ensure we have enough data to slice
+                possible_name = decode_device_name(value[2:])
+                if possible_name:
+                    return possible_name
     return None
 
 def serialize_service_info(service_info):
@@ -61,11 +65,11 @@ def serialize_service_info(service_info):
             "address": service_info.address,
             "rssi": service_info.rssi,
             "manufacturer_data": {key: base64.b64encode(value).decode() for key, value in service_info.manufacturer_data.items()},
-            "service_data": {key: base64.b64encode(value).decode() for key, value in service_info.service_data.items()},
-            "service_uuids": service_info.service_uuids,
+            "service_data": {key: base64.b64encode(value).decode() for key, value in service_info.service_data.items()} if service_info.service_data else {},
+            "service_uuids": service_info.service_uuids or [],
             "source": service_info.source,
             "connectable": service_info.connectable,
-            "tx_power": service_info.tx_power,
+            "tx_power": service_info.tx_power if service_info.tx_power is not None else "Unknown",
         }
     except Exception as e:
         _LOGGER.error(f"🔥 Error serializing service info: {e}")
@@ -120,6 +124,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         _LOGGER.info("🗑️ Clearing manufacturer cache...")
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
+
+
 
 
  
