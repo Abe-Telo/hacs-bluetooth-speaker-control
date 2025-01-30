@@ -1,7 +1,7 @@
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.const import EVENT_HOMEASSISTANT_START
-from .bluetooth import discover_bluetooth_devices, pair_device, connect_device, disconnect_device
+from .bluetooth import discover_bluetooth_devices, pair_device, connect_device, disconnect_device, _format_device
 import logging
 
 DOMAIN = "bluetooth_speaker_control"

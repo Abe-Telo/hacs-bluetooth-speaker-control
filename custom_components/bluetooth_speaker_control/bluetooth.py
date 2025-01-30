@@ -22,6 +22,22 @@ GAP_APPEARANCE = {}
 SERVICE_UUIDS = {}
 CHARACTERISTIC_UUIDS = {}
 
+async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
+    """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
+    _LOGGER.debug(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
+    discovered_devices = []
+
+    for service_info in async_discovered_service_info(hass):
+        _LOGGER.debug(f"📡 Service Info: {json.dumps(serialize_service_info(service_info), indent=2)}")
+        discovered_devices.append(_format_device(service_info))
+
+    if discovered_devices:
+        _LOGGER.info(f"✅ Found {len(discovered_devices)} devices before scanning: {json.dumps(discovered_devices, indent=2)}")
+        return discovered_devices
+
+    return discovered_devices
+
+
 async def fetch_bluetooth_database():
     """Fetch and update the Bluetooth database from Nordic Semiconductor."""
     global BLUETOOTH_SIG_COMPANIES, GAP_APPEARANCE, SERVICE_UUIDS, CHARACTERISTIC_UUIDS
