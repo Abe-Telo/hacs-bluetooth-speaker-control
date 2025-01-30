@@ -31,10 +31,10 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
     for service_info in async_discovered_service_info(hass):
         _LOGGER.debug(f"📡 Service Info: {json.dumps(serialize_service_info(service_info), indent=2)}")
 
-        _LOGGER.debug(f"🔍 from_advertisement: {service_info.from_advertisement}")
+        _LOGGER.debug(f"🔍 from_advertisement(): {service_info.from_advertisement()}")
         _LOGGER.debug(f"🔍 device: {service_info.device}")
         _LOGGER.debug(f"🔍 advertisement: {service_info.advertisement}")
-        _LOGGER.debug(f"🔍 from_device_and_advertisement_data: {service_info.from_device_and_advertisement_data}")
+        _LOGGER.debug(f"🔍 from_device_and_advertisement_data(): {service_info.from_device_and_advertisement_data()}")
         _LOGGER.debug(f"🔍 from scan: {service_info.from_scan}")
         _LOGGER.debug(f"🔍 manufacturer: {service_info.manufacturer}")
         _LOGGER.debug(f"🔍 name: {service_info.name}") 
@@ -42,7 +42,7 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
         _LOGGER.debug(f"🔍 service_uuids: {service_info.service_uuids}") 
         _LOGGER.debug(f"🔍 source: {service_info.source}")  
         _LOGGER.debug(f"🔍 address: {service_info.address}")  
-        _LOGGER.debug(f"🔍 as_dict: {service_info.as_dict()}")  
+        _LOGGER.debug(f"🔍 as_dict(): {service_info.as_dict()}")  
         _LOGGER.debug(f"🔍 connectable: {service_info.connectable}")  
         _LOGGER.debug(f"🔍 manufacturer_data: {service_info.manufacturer_data}")  
         _LOGGER.debug(f"🔍 manufacturer_id: {service_info.manufacturer_id}")  
