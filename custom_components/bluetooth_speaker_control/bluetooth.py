@@ -29,6 +29,8 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
 
     for service_info in async_discovered_service_info(hass):
         _LOGGER.debug(f"📡 Service Info: {json.dumps(serialize_service_info(service_info), indent=2)}")
+        _LOGGER.debug(f"🔍 from_advertisement: {service_info.from_advertisement}")
+        _LOGGER.debug(f"🔍 device: {service_info.device}")
         discovered_devices.append(_format_device(service_info))
 
     if discovered_devices:
@@ -54,6 +56,7 @@ async def fetch_bluetooth_database():
             _LOGGER.info("✅ Successfully updated Bluetooth database from Nordic Semiconductor")
         except Exception as e:
             _LOGGER.error(f"🔥 Error fetching Bluetooth database: {e}")
+
 
 
 def decode_device_name(name_bytes):
