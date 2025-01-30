@@ -22,7 +22,7 @@ GAP_APPEARANCE = {}
 SERVICE_UUIDS = {}
 CHARACTERISTIC_UUIDS = {}
 
-async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
+async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
     """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
     _LOGGER.debug(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
     discovered_devices = []
@@ -40,7 +40,7 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
         _LOGGER.debug(f"🔍 service_uuids: {service_info.service_uuids}") 
         _LOGGER.debug(f"🔍 source: {service_info.source}")  
         _LOGGER.debug(f"🔍 address: {service_info.address}")  
-        _LOGGER.debug(f"🔍 as_dict: {service_info.as_dict}")  
+        _LOGGER.debug(f"🔍 as_dict: {service_info.as_dict()}")  
         _LOGGER.debug(f"🔍 connectable: {service_info.connectable}")  
         _LOGGER.debug(f"🔍 manufacturer_data: {service_info.manufacturer_data}")  
         _LOGGER.debug(f"🔍 manufacturer_id: {service_info.manufacturer_id}")  
