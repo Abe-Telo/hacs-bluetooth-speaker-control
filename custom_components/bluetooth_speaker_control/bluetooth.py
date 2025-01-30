@@ -76,31 +76,37 @@ def serialize_service_info(service_info):
 
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
-
-    #_LOGGER.debug(f"🔍 Raw Manufacturer Data Hex: {service_info.manufacturer_data}") 
-    #_LOGGER.debug(f"📡 Full Service Info as_dict(): {json.dumps(serialize_service_info(service_info), indent=2)}")
-    #_LOGGER.debug(f"🔍 Full Raw Manufacturer Data: {value.hex()}")
-    #_LOGGER.debug(f"🔍 Manufacturer Data Type: {type(value)}")
-
-
-
+    
+    # Log full raw service info attributes
     _LOGGER.debug(f"📡 Raw Service Info Attributes: {dir(service_info)}")
+
     try:
         _LOGGER.debug(f"📡 Full Service Info as_dict(): {json.dumps(serialize_service_info(service_info), indent=2)}")
     except Exception as e:
         _LOGGER.error(f"🔥 Error logging service info: {e}")
 
+    # Extract Manufacturer Data
+    manufacturer_data = service_info.manufacturer_data or {}
+
+    # Log raw manufacturer data before any modification
+    _LOGGER.debug(f"🔍 Raw Manufacturer Data (Before Processing): {manufacturer_data}")
+
+    for key, value in manufacturer_data.items():
+        _LOGGER.debug(f"🔍 Manufacturer Data Key: {key}, Type: {type(value)}, Value (repr): {repr(value)}")
+        _LOGGER.debug(f"🔍 Manufacturer Data Hex [{key}]: {value.hex() if isinstance(value, bytes) else 'Not Bytes'}")
+
+    # Extract device name from raw manufacturer data
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
     
-    manufacturer_data = service_info.manufacturer_data or {}
     manufacturer_id = next(iter(manufacturer_data), None)
     manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
-    
+
     if device_name == service_info.address:
         device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
-    
+
+    # Log the discovered device details
     _LOGGER.info(f"🆔 Discovered Device: {json.dumps(serialize_service_info(service_info), indent=2)}")
-    
+
     return {
         "name": device_name,
         "manufacturer": manufacturer,
@@ -108,6 +114,7 @@ def _format_device(service_info):
         "rssi": service_info.rssi,
         "service_uuids": service_info.service_uuids,
     }
+
 
 async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
     """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
