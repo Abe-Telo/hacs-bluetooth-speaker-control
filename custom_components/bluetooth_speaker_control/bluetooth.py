@@ -69,20 +69,23 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
  
             if callable(service_info.from_advertisement):
                 adv_result = service_info.from_advertisement(
+                    service_info.__class__,  # Class reference (BluetoothServiceInfoBleak)
                     service_info.address,  # Address (MAC)
                     service_info.advertisement,  # AdvertisementData object
                     service_info.source  # Adapter source ID
                 )
                 _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
 
+
             if callable(service_info.from_scan):
                 scan_result = service_info.from_scan(
-                    service_info.device,  # BLE Device
-                    service_info.advertisement,  # AdvertisementData
+                    service_info.__class__,  # Class reference (BluetoothServiceInfoBleak)
+                    service_info.device,  # BLE Device object
+                    service_info.advertisement,  # AdvertisementData object
                     service_info.rssi,  # RSSI value
                     service_info.connectable,  # Is Connectable
                     service_info.source  # Adapter source ID
-                )
+                ) 
                 _LOGGER.debug(f"🔍 from_scan() Output: {json.dumps(serialize_service_info(scan_result), indent=2)}")
         except Exception as e:
             _LOGGER.error(f"⚠️ Error calling from_advertisement/from_scan: {e}")
