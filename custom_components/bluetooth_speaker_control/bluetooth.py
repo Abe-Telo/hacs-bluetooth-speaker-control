@@ -37,62 +37,45 @@ MANUFACTURER_CACHE = {}
 
 def decode_device_name(name_bytes):
     """Attempt to decode a device name from multiple encodings."""
-    if not name_bytes:
-        return None
-
     for encoding in ("utf-8", "utf-16", "latin-1"):
         try:
             decoded = name_bytes.decode(encoding).strip()
-            if all(32 <= ord(c) < 127 for c in decoded):  # Ensure printable characters
+            if all(32 <= ord(c) < 127 for c in decoded):
                 return decoded
         except UnicodeDecodeError:
             continue
+    return base64.b64encode(name_bytes).decode()
 
-    # If decoding fails, check for ASCII-only bytes (avoid Base64 when unnecessary)
-    if all(32 <= byte < 127 for byte in name_bytes):
-        return name_bytes.decode("ascii")
-
-    # If all decoding fails, return None instead of Base64
-    return None
-
- 
 def extract_friendly_name(service_info):
     """Extract a friendly name from available advertisement or manufacturer data."""
-    # First, check advertisement local_name
     if service_info.advertisement and hasattr(service_info.advertisement, "local_name"):
-        local_name = service_info.advertisement.local_name
-        if local_name:
-            return local_name.strip()
-
-    # If local_name is missing, check manufacturer_data
+        if service_info.advertisement.local_name:
+            return service_info.advertisement.local_name.strip()
+    
     manufacturer_data = service_info.manufacturer_data
     if manufacturer_data:
         for key, value in manufacturer_data.items():
             _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value.hex()}")
-            possible_name = decode_device_name(value[2:])  # Skip first two bytes
+            possible_name = decode_device_name(value[2:])
             if possible_name:
                 return possible_name
-
-    return None  # Ensure None is returned if no valid name is found
-
+    return None
 
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
     _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
-
+    
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
-
-    manufacturer_data = service_info.manufacturer_data or {}
+    
+    manufacturer_data = service_info.manufacturer_data
     manufacturer_id = next(iter(manufacturer_data), None)
-
-    # Ensure manufacturer is always assigned
-    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})") if manufacturer_id is not None else "Unknown"
-
+    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
+    
     if device_name == service_info.address:
         device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
-
-    _LOGGER.info(f"🆔 Discovered Device: Name='{device_name}', Manufacturer='{manufacturer}', MAC='{service_info.address}'")
-
+    
+    _LOGGER.info(f"🆔 Discovered Device: {json.dumps(service_info.as_dict(), indent=2)}")
+    
     return {
         "name": device_name,
         "manufacturer": manufacturer,
@@ -100,7 +83,6 @@ def _format_device(service_info):
         "rssi": service_info.rssi,
         "service_uuids": service_info.service_uuids,
     }
-
 
 async def scan_bluetooth_devices(hass):
     """Run both Active and Passive scans and merge results."""
@@ -110,8 +92,8 @@ async def scan_bluetooth_devices(hass):
     _LOGGER.debug("🔄 Running Passive Scan...")
     passive_results = await discover_bluetooth_devices(hass, timeout=10, passive_scanning=True)
 
-    all_results = {device["mac"]: device for device in active_results + passive_results}
-    _LOGGER.info(f"✅ Final Merged Bluetooth Devices: {list(all_results.values())}")
+    all_results = {device["mac_address"]: device for device in active_results + passive_results}
+    _LOGGER.info(f"✅ Final Merged Bluetooth Devices: {json.dumps(list(all_results.values()), indent=2)}")
 
     return list(all_results.values())
 
@@ -121,11 +103,11 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
     discovered_devices = []
 
     for service_info in async_discovered_service_info(hass):
-        _LOGGER.debug(f"📡 Service Info: {service_info}")
+        _LOGGER.debug(f"📡 Service Info: {json.dumps(service_info.as_dict(), indent=2)}")
         discovered_devices.append(_format_device(service_info))
 
     if discovered_devices:
-        _LOGGER.info(f"✅ Found {len(discovered_devices)} devices before scanning: {discovered_devices}")
+        _LOGGER.info(f"✅ Found {len(discovered_devices)} devices before scanning: {json.dumps(discovered_devices, indent=2)}")
         return discovered_devices
 
     def device_found(service_info, change: BluetoothChange):
@@ -133,7 +115,7 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
         device = _format_device(service_info)
         if device not in discovered_devices:
             discovered_devices.append(device)
-            _LOGGER.debug(f"📡 Found Bluetooth device: {device}")
+            _LOGGER.debug(f"📡 Found Bluetooth device: {json.dumps(device, indent=2)}")
 
     try:
         _LOGGER.debug("📡 Registering Bluetooth scan callback...")
@@ -156,9 +138,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def handle_clear_cache(call: ServiceCall) -> None:
         """Service call to clear the manufacturer cache."""
         _LOGGER.info("🗑️ Clearing manufacturer cache...")
-        clear_manufacturer_cache()
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
  
 
