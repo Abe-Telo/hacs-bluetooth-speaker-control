@@ -99,9 +99,14 @@ def _format_device(service_info):
     except Exception as e:
         _LOGGER.error(f"🔥 Error logging service info: {e}")
 
+    manufacturer_data = service_info.manufacturer_data or {}
+    _LOGGER.debug(f"🔍 Raw Manufacturer Data: {manufacturer_data}")
+    for key, value in manufacturer_data.items():
+        _LOGGER.debug(f"🔍 Manufacturer Data Key: {key}, Type: {type(value)}, Value (repr): {repr(value)}")
+        _LOGGER.debug(f"🔍 Manufacturer Data Hex [{key}]: {value.hex()}")
+
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
     
-    manufacturer_data = service_info.manufacturer_data or {}
     manufacturer_id = next(iter(manufacturer_data), None)
     manufacturer = BLUETOOTH_SIG_COMPANIES.get(str(manufacturer_id), f"Unknown (ID {manufacturer_id})")
     
