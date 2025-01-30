@@ -32,14 +32,21 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
         _LOGGER.debug(f"🔍 from_advertisement: {service_info.from_advertisement}")
         _LOGGER.debug(f"🔍 device: {service_info.device}")
         _LOGGER.debug(f"🔍 advertisement: {service_info.advertisement}")
-        _LOGGER.debug(f"🔍 from_device and_advertisement_data: {service_info.from_device_and_advertisement_data}")
+        _LOGGER.debug(f"🔍 from_device_and_advertisement_data: {service_info.from_device_and_advertisement_data}")
         _LOGGER.debug(f"🔍 from scan: {service_info.from_scan}")
         _LOGGER.debug(f"🔍 manufacturer: {service_info.manufacturer}")
         _LOGGER.debug(f"🔍 name: {service_info.name}") 
         _LOGGER.debug(f"🔍 service_data: {service_info.service_data}") 
         _LOGGER.debug(f"🔍 service_uuids: {service_info.service_uuids}") 
         _LOGGER.debug(f"🔍 source: {service_info.source}")  
-
+        _LOGGER.debug(f"🔍 address: {service_info.address}")  
+        _LOGGER.debug(f"🔍 as_dict: {service_info.as_dict}")  
+        _LOGGER.debug(f"🔍 connectable: {service_info.connectable}")  
+        _LOGGER.debug(f"🔍 manufacturer_data: {service_info.manufacturer_data}")  
+        _LOGGER.debug(f"🔍 manufacturer_id: {service_info.manufacturer_id}")  
+        _LOGGER.debug(f"🔍 rssi: {service_info.rssi}")  
+        _LOGGER.debug(f"🔍 time: {service_info.time}")  
+        _LOGGER.debug(f"🔍 tx_power: {service_info.tx_power}") 
         
         discovered_devices.append(_format_device(service_info))
 
