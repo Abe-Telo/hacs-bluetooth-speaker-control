@@ -34,8 +34,11 @@ async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
         _LOGGER.debug(f"🔍 advertisement: {service_info.advertisement}")
         _LOGGER.debug(f"🔍 from_device and_advertisement_data: {service_info.from_device_and_advertisement_data}")
         _LOGGER.debug(f"🔍 from scan: {service_info.from_scan}")
-        _LOGGER.debug(f"🔍 from scan: {service_info.manufacturer}")
-        _LOGGER.debug(f"🔍 from scan: {service_info.name}") 
+        _LOGGER.debug(f"🔍 manufacturer: {service_info.manufacturer}")
+        _LOGGER.debug(f"🔍 name: {service_info.name}") 
+        _LOGGER.debug(f"🔍 service_data: {service_info.service_data}") 
+        _LOGGER.debug(f"🔍 service_uuids: {service_info.service_uuids}") 
+        _LOGGER.debug(f"🔍 source: {service_info.source}")  
 
         
         discovered_devices.append(_format_device(service_info))
