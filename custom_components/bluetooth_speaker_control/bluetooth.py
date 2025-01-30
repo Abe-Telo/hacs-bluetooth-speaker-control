@@ -40,7 +40,7 @@ def decode_device_name(name_bytes):
         except UnicodeDecodeError:
             continue
 
-    return base64.b64encode(name_bytes).decode()
+    return f"[ENCODED] {base64.b64encode(name_bytes).decode()}"
 
 def extract_friendly_name(service_info):
     """Extract a friendly name from available advertisement or manufacturer data."""
@@ -48,13 +48,12 @@ def extract_friendly_name(service_info):
         if hasattr(service_info.advertisement, "local_name") and service_info.advertisement.local_name:
             return service_info.advertisement.local_name.strip()
     
-    manufacturer_data = service_info.manufacturer_data
-    if manufacturer_data:
-        for key, value in manufacturer_data.items():
-            if len(value) > 2:  # Ensure we have enough data to slice
-                possible_name = decode_device_name(value[2:])
-                if possible_name:
-                    return possible_name
+    manufacturer_data = service_info.manufacturer_data or {}
+    for key, value in manufacturer_data.items():
+        if len(value) > 2:  # Ensure we have enough data to slice
+            possible_name = decode_device_name(value[2:])
+            if possible_name:
+                return possible_name
     return None
 
 def serialize_service_info(service_info):
@@ -85,7 +84,7 @@ def _format_device(service_info):
 
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
     
-    manufacturer_data = service_info.manufacturer_data
+    manufacturer_data = service_info.manufacturer_data or {}
     manufacturer_id = next(iter(manufacturer_data), None)
     manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
     
@@ -124,6 +123,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         _LOGGER.info("🗑️ Clearing manufacturer cache...")
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
