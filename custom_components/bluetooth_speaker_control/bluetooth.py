@@ -141,6 +141,28 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 
+def analyze_manufacturer_data(manufacturer_data):
+    """Analyze manufacturer data to extract possible device information."""
+    for key, value in manufacturer_data.items():
+        _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value.hex()}")
+        
+        if len(value) >= 4:  # Ensure there are enough bytes
+            identifier = int.from_bytes(value[2:4], "big")  # Extract 3rd and 4th bytes
+            _LOGGER.debug(f"🔍 Possible Device Identifier: {identifier}")
+
+            # Compare with known database (gap_appearance.json or decimal_ids.js)
+            matched_device = GAP_APPEARANCE_DICT.get(identifier, f"Unknown (ID {identifier})")
+            _LOGGER.info(f"🆔 Matched Device: {matched_device}")
+
+            return matched_device
+    return "Unknown"
+
+
+
+
+
+
+
 
 
 
