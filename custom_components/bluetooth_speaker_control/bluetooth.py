@@ -74,8 +74,7 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
                     service_info.source  # Adapter source ID
                 )
                 _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
-
-
+                
             if callable(service_info.from_scan):
                 scan_result = service_info.from_scan( 
                     service_info.device,  # BLE Device object
