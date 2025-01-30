@@ -24,11 +24,13 @@ CHARACTERISTIC_UUIDS = {}
 
 async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
     """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
+
     _LOGGER.debug(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
     discovered_devices = []
 
     for service_info in async_discovered_service_info(hass):
         _LOGGER.debug(f"📡 Service Info: {json.dumps(serialize_service_info(service_info), indent=2)}")
+
         _LOGGER.debug(f"🔍 from_advertisement: {service_info.from_advertisement}")
         _LOGGER.debug(f"🔍 device: {service_info.device}")
         _LOGGER.debug(f"🔍 advertisement: {service_info.advertisement}")
@@ -47,7 +49,31 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
         _LOGGER.debug(f"🔍 rssi: {service_info.rssi}")  
         _LOGGER.debug(f"🔍 time: {service_info.time}")  
         _LOGGER.debug(f"🔍 tx_power: {service_info.tx_power}") 
-        
+
+        # **Extract details from advertisement**
+        if service_info.advertisement:
+            adv_data = service_info.advertisement
+            _LOGGER.debug(f"📢 Advertisement Data: {adv_data}")
+
+            if hasattr(adv_data, "local_name") and adv_data.local_name:
+                _LOGGER.debug(f"🆔 Extracted Local Name: {adv_data.local_name}")
+
+            if hasattr(adv_data, "manufacturer_data") and adv_data.manufacturer_data:
+                _LOGGER.debug(f"🏭 Manufacturer Data from Advertisement: {adv_data.manufacturer_data}")
+
+        # **Call methods to extract information**
+        try:
+            if callable(service_info.from_scan):
+                scan_result = service_info.from_scan()
+                _LOGGER.debug(f"🔍 from_scan() Output: {scan_result}")
+
+            if callable(service_info.from_advertisement):
+                adv_result = service_info.from_advertisement()
+                _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
+
+        except Exception as e:
+            _LOGGER.error(f"⚠️ Error calling from_scan/from_advertisement: {e}")
+
         discovered_devices.append(_format_device(service_info))
 
     if discovered_devices:
