@@ -53,45 +53,39 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
 
 
         # **Extract details from advertisement**
-        if service_info.advertisement:
-            adv_data = service_info.advertisement
-            _LOGGER.debug(f"📢 Advertisement Data: {adv_data}")
+        # from_scan() requires 5 arguments:
+        # 1. device – The BLE device object.
+        # 2. advertisement_data – The advertisement data received.
+        # 3. rssi (int) – Received Signal Strength Indicator.
+        # 4. connectable (bool) – Whether the device is connectable.
+        # 5. source (str) – The source adapter ID.
+ 
 
-            if hasattr(adv_data, "local_name") and adv_data.local_name:
-                _LOGGER.debug(f"🆔 Extracted Local Name: {adv_data.local_name}")
-
-            if hasattr(adv_data, "manufacturer_data") and adv_data.manufacturer_data:
-                _LOGGER.debug(f"🏭 Manufacturer Data from Advertisement: {adv_data.manufacturer_data}")
-
-        # from_advertisement: from_advertisement(cls, address: str, advertisement_data, source: str)
-        #Expected Arguments:
-        #address (str) – The MAC address of the device.
-        #advertisement_data (AdvertisementData) – The advertisement data object received from the Bluetooth scan.
-        #source (str) – The source adapter ID (e.g., "hci0" or the actual Bluetooth adapter's identifier).
         try:
+        # from_advertisement: from_advertisement(cls, address: str, advertisement_data, source: str)
+        # 1. address (str) – The MAC address of the device.
+        # 2. advertisement_data (AdvertisementData) – The advertisement data object received from the Bluetooth scan.
+        # 3. source (str) – The source adapter ID (e.g., "hci0" or the actual Bluetooth adapter's identifier).
+ 
             if callable(service_info.from_advertisement):
-                adv_result = service_info.from_advertisement(service_info.address, service_info.advertisement)
+                adv_result = service_info.from_advertisement(
+                    service_info.address,  # Address (MAC)
+                    service_info.advertisement,  # AdvertisementData object
+                    service_info.source  # Adapter source ID
+                )
                 _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
 
             if callable(service_info.from_scan):
-                scan_result = service_info.from_scan(service_info.device, service_info.advertisement)
+                scan_result = service_info.from_scan(
+                    service_info.device,  # BLE Device
+                    service_info.advertisement,  # AdvertisementData
+                    service_info.rssi,  # RSSI value
+                    service_info.connectable,  # Is Connectable
+                    service_info.source  # Adapter source ID
+                )
                 _LOGGER.debug(f"🔍 from_scan() Output: {scan_result}")
         except Exception as e:
             _LOGGER.error(f"⚠️ Error calling from_advertisement/from_scan: {e}")
- 
-
-        # **Call methods to extract information**
-        try:
-            if callable(service_info.from_scan):
-                scan_result = service_info.from_scan()
-                _LOGGER.debug(f"🔍 from_scan() Output: {scan_result}")
-
-            if callable(service_info.from_advertisement):
-                adv_result = service_info.from_advertisement()
-                _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
-
-        except Exception as e:
-            _LOGGER.error(f"⚠️ Error calling from_scan/from_advertisement: {e}")
 
         discovered_devices.append(_format_device(service_info))
 
