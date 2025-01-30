@@ -106,8 +106,8 @@ def _format_device(service_info):
 
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
     
-    manufacturer_id = next(iter(manufacturer_data), None)
-    manufacturer = BLUETOOTH_SIG_COMPANIES.get(str(manufacturer_id), f"Unknown (ID {manufacturer_id})")
+    manufacturer_id = str(next(iter(manufacturer_data), None))
+    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
     
     if device_name == service_info.address:
         device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
@@ -147,6 +147,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         _LOGGER.info("🗑️ Clearing manufacturer cache...")
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
