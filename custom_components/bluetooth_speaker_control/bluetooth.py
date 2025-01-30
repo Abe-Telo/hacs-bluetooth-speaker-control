@@ -27,9 +27,8 @@ async def fetch_bluetooth_database():
     global BLUETOOTH_SIG_COMPANIES, GAP_APPEARANCE, SERVICE_UUIDS, CHARACTERISTIC_UUIDS
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(BLUETOOTH_NUMBERS_DB + "decimal_ids.js") as response:
-                data = await response.text()
-                BLUETOOTH_SIG_COMPANIES = json.loads(data[data.index("{"):-2])
+            async with session.get(BLUETOOTH_NUMBERS_DB + "decimal_ids.json") as response:
+                BLUETOOTH_SIG_COMPANIES = await response.json()
             async with session.get(BLUETOOTH_NUMBERS_DB + "gap_appearance.json") as response:
                 GAP_APPEARANCE = await response.json()
             async with session.get(BLUETOOTH_NUMBERS_DB + "service_uuids.json") as response:
@@ -148,6 +147,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         _LOGGER.info("🗑️ Clearing manufacturer cache...")
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
