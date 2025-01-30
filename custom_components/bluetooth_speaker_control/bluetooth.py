@@ -68,8 +68,7 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
         # 3. source (str) – The source adapter ID (e.g., "hci0" or the actual Bluetooth adapter's identifier).
  
             if callable(service_info.from_advertisement):
-                adv_result = service_info.from_advertisement(
-                    service_info.__class__,  # Class reference (BluetoothServiceInfoBleak)
+                adv_result = service_info.from_advertisement( 
                     service_info.address,  # Address (MAC)
                     service_info.advertisement,  # AdvertisementData object
                     service_info.source  # Adapter source ID
@@ -78,8 +77,7 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
 
 
             if callable(service_info.from_scan):
-                scan_result = service_info.from_scan(
-                    service_info.__class__,  # Class reference (BluetoothServiceInfoBleak)
+                scan_result = service_info.from_scan( 
                     service_info.device,  # BLE Device object
                     service_info.advertisement,  # AdvertisementData object
                     service_info.rssi,  # RSSI value
