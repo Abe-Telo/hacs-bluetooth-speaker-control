@@ -70,7 +70,8 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
             if callable(service_info.from_advertisement):
                 adv_result = service_info.from_advertisement(
                     service_info.address,  # Address (MAC)
-                    service_info.advertisement  # AdvertisementData object
+                    service_info.advertisement,  # AdvertisementData object
+                    service_info.source  # Adapter source ID (this was missing)
                 )
                 _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
 
