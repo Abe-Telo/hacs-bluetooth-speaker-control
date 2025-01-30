@@ -37,38 +37,28 @@ MANUFACTURER_CACHE = {}
 
 def decode_device_name(name_bytes):
     """Attempt to decode a device name from multiple encodings."""
-    try:
-        return name_bytes.decode("utf-8").strip()
-    except UnicodeDecodeError:
+    for encoding in ("utf-8", "utf-16", "latin-1"):
         try:
-            return name_bytes.decode("utf-16").strip()
+            decoded = name_bytes.decode(encoding).strip()
+            if all(32 <= ord(c) < 127 for c in decoded):  # Ensure printable characters
+                return decoded
         except UnicodeDecodeError:
-            try:
-                return name_bytes.decode("latin-1").strip()
-            except UnicodeDecodeError:
-                return base64.b64encode(name_bytes).decode()
+            continue
+    return base64.b64encode(name_bytes).decode()
 
 def extract_friendly_name(service_info):
     """Extract a friendly name from available advertisement or manufacturer data."""
     if service_info.advertisement and hasattr(service_info.advertisement, "local_name"):
-        return service_info.advertisement.local_name
+        if service_info.advertisement.local_name:
+            return service_info.advertisement.local_name.strip()
     
     manufacturer_data = service_info.manufacturer_data
     if manufacturer_data:
         for key, value in manufacturer_data.items():
-            hex_value = value.hex()
-            byte_list = list(value)  # Convert to list of integers for manual analysis
-            _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value} | Hex: {hex_value} | Bytes: {byte_list}")
-            
-            try:
-                # Some devices prepend metadata before the name, so try extracting a substring
-                possible_name = decode_device_name(value[2:])  # Skip first two bytes (potential metadata)
-                if possible_name and all(32 <= ord(c) < 127 for c in possible_name):  # Ensure readable text
-                    return possible_name
-            except Exception as e:
-                _LOGGER.debug(f"⚠️ Failed to decode manufacturer data key {key}: {e}")
-                continue
-    
+            _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value.hex()}")
+            possible_name = decode_device_name(value[2:])  # Skip first two bytes
+            if possible_name:
+                return possible_name
     return None
 
 def _format_device(service_info):
@@ -76,9 +66,6 @@ def _format_device(service_info):
     _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
     
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
-    
-    if isinstance(device_name, bytes):
-        device_name = decode_device_name(device_name)
     
     manufacturer_data = service_info.manufacturer_data
     manufacturer_id = next(iter(manufacturer_data), None)
@@ -154,6 +141,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         clear_manufacturer_cache()
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
  
 
 
