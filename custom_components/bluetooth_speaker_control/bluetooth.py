@@ -69,8 +69,9 @@ def serialize_service_info(service_info):
 
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
+    _LOGGER.debug(f"📡 Raw Service Info Attributes: {vars(service_info)}")
     _LOGGER.debug(f"📡 Full Service Info as_dict(): {json.dumps(serialize_service_info(service_info), indent=2)}")
-    
+
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
     
     manufacturer_data = service_info.manufacturer_data
