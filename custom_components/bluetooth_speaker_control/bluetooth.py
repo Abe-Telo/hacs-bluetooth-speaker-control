@@ -57,7 +57,7 @@ def decode_device_name(name_bytes):
 
 
 def extract_friendly_name(service_info):
-    """Extract a friendly name from available advertisement or manufacturer data."""
+    """Extract a friendly name from advertisement or manufacturer data."""
     if hasattr(service_info, "advertisement") and service_info.advertisement:
         if hasattr(service_info.advertisement, "local_name") and service_info.advertisement.local_name:
             return service_info.advertisement.local_name.strip()
@@ -76,21 +76,31 @@ def get_device_type(appearance_id):
     return GAP_APPEARANCE.get(str(appearance_id), "Unknown Type")
 
 
-def analyze_manufacturer_data(manufacturer_data):
-    """Analyze manufacturer data to extract possible device information."""
+def parse_manufacturer_data(manufacturer_data):
+    """Extract Manufacturer and Device Model ID from Manufacturer Data."""
+    extracted_info = {}
+
     for key, value in manufacturer_data.items():
-        _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value.hex()}")
+        _LOGGER.debug(f"🔍 Manufacturer Data Key: {key}, Type: {type(value)}, Value (repr): {repr(value)}")
+        _LOGGER.debug(f"🔍 Manufacturer Data Hex [{key}]: {value.hex()}")
 
-        if len(value) >= 4:  # Ensure there are enough bytes
-            identifier = int.from_bytes(value[2:4], "big")  # Extract bytes 3 & 4
-            _LOGGER.debug(f"🔍 Possible Device Identifier: {identifier}")
+        manufacturer_id = int(key)  # Ensure it's an integer
+        manufacturer = BLUETOOTH_SIG_COMPANIES.get(str(manufacturer_id), f"Unknown (ID {manufacturer_id})")
 
-            # Match with known database (GAP appearance or manufacturer ID)
-            matched_device = GAP_APPEARANCE.get(str(identifier), f"Unknown (ID {identifier})")
-            _LOGGER.info(f"🆔 Matched Device: {matched_device}")
+        if len(value) >= 4:
+            device_model_id = int.from_bytes(value[2:4], "big")  # Extract bytes 3 & 4 as potential model ID
+            device_type = get_device_type(device_model_id)
+        else:
+            device_model_id = "Unknown"
+            device_type = "Unknown Type"
 
-            return matched_device
-    return "Unknown"
+        extracted_info[manufacturer_id] = {
+            "manufacturer": manufacturer,
+            "device_model_id": device_model_id,
+            "device_type": device_type,
+        }
+
+    return extracted_info
 
 
 def serialize_service_info(service_info):
@@ -122,19 +132,19 @@ def _format_device(service_info):
 
     manufacturer_data = service_info.manufacturer_data or {}
     _LOGGER.debug(f"🔍 Raw Manufacturer Data: {manufacturer_data}")
-    
-    for key, value in manufacturer_data.items():
-        _LOGGER.debug(f"🔍 Manufacturer Data Key: {key}, Type: {type(value)}, Value (repr): {repr(value)}")
-        _LOGGER.debug(f"🔍 Manufacturer Data Hex [{key}]: {value.hex()}")
+
+    extracted_info = parse_manufacturer_data(manufacturer_data)
 
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
-    
-    manufacturer_id = str(next(iter(manufacturer_data), None))
-    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
+    manufacturer_id = next(iter(manufacturer_data), None)
 
-    # Try to analyze manufacturer data for device type
-    device_type = analyze_manufacturer_data(manufacturer_data)
-    
+    if manufacturer_id is not None and manufacturer_id in extracted_info:
+        manufacturer = extracted_info[manufacturer_id]["manufacturer"]
+        device_type = extracted_info[manufacturer_id]["device_type"]
+    else:
+        manufacturer = f"Unknown (ID {manufacturer_id})"
+        device_type = "Unknown Type"
+
     if device_name == service_info.address:
         device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
     
@@ -158,6 +168,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         _LOGGER.info("🗑️ Clearing manufacturer cache...")
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
+
 
 
 
