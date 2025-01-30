@@ -79,20 +79,20 @@ def extract_friendly_name(service_info):
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
     _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
-    
-    device_name = extract_friendly_name(service_info)
-    if not device_name or device_name == service_info.address:
-        device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
 
-    manufacturer_data = service_info.manufacturer_data
+    device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
+
+    manufacturer_data = service_info.manufacturer_data or {}
     manufacturer_id = next(iter(manufacturer_data), None)
-    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
-    
+
+    # Ensure manufacturer is always assigned
+    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})") if manufacturer_id is not None else "Unknown"
+
     if device_name == service_info.address:
         device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
-    
+
     _LOGGER.info(f"🆔 Discovered Device: Name='{device_name}', Manufacturer='{manufacturer}', MAC='{service_info.address}'")
-    
+
     return {
         "name": device_name,
         "manufacturer": manufacturer,
@@ -100,6 +100,7 @@ def _format_device(service_info):
         "rssi": service_info.rssi,
         "service_uuids": service_info.service_uuids,
     }
+
 
 async def scan_bluetooth_devices(hass):
     """Run both Active and Passive scans and merge results."""
