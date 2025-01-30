@@ -55,22 +55,29 @@ def extract_friendly_name(service_info):
 
 def serialize_service_info(service_info):
     """Convert BluetoothServiceInfoBleak to a JSON-serializable format."""
-    return {
-        "name": service_info.name,
-        "address": service_info.address,
-        "rssi": service_info.rssi,
-        "manufacturer_data": {key: base64.b64encode(value).decode() for key, value in service_info.manufacturer_data.items()},
-        "service_data": {key: base64.b64encode(value).decode() for key, value in service_info.service_data.items()},
-        "service_uuids": service_info.service_uuids,
-        "source": service_info.source,
-        "connectable": service_info.connectable,
-        "tx_power": service_info.tx_power,
-    }
+    try:
+        return {
+            "name": service_info.name,
+            "address": service_info.address,
+            "rssi": service_info.rssi,
+            "manufacturer_data": {key: base64.b64encode(value).decode() for key, value in service_info.manufacturer_data.items()},
+            "service_data": {key: base64.b64encode(value).decode() for key, value in service_info.service_data.items()},
+            "service_uuids": service_info.service_uuids,
+            "source": service_info.source,
+            "connectable": service_info.connectable,
+            "tx_power": service_info.tx_power,
+        }
+    except Exception as e:
+        _LOGGER.error(f"🔥 Error serializing service info: {e}")
+        return {}
 
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
-    _LOGGER.debug(f"📡 Raw Service Info Attributes: {vars(service_info)}")
-    _LOGGER.debug(f"📡 Full Service Info as_dict(): {json.dumps(serialize_service_info(service_info), indent=2)}")
+    _LOGGER.debug(f"📡 Raw Service Info Attributes: {dir(service_info)}")
+    try:
+        _LOGGER.debug(f"📡 Full Service Info as_dict(): {json.dumps(serialize_service_info(service_info), indent=2)}")
+    except Exception as e:
+        _LOGGER.error(f"🔥 Error logging service info: {e}")
 
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
     
@@ -116,35 +123,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ### **🔹 Extract Advertisement Data Properly**
