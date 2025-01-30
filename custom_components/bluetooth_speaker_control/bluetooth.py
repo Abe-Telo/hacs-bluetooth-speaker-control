@@ -2,6 +2,7 @@ import logging
 import asyncio
 import json
 import base64
+import aiohttp
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
@@ -14,18 +15,30 @@ from homeassistant.components.bluetooth import (
 
 _LOGGER = logging.getLogger(__name__)
 
-BLUETOOTH_SIG_COMPANIES = {
-    6: "Microsoft",
-    76: "Apple, Inc.",
-    89: "Garmin International, Inc.",
-    117: "Google",
-    152: "Samsung Electronics Co. Ltd.",
-    4096: "Sony Corporation",
-    4961: "Bose Corporation",
-    1177: "Logitech Inc.",
-    3052: "Fitbit, Inc.",
-    6171: "Meta Platforms, Inc.",
-}
+BLUETOOTH_NUMBERS_DB = "https://raw.githubusercontent.com/NordicSemiconductor/bluetooth-numbers-database/refs/heads/master/"
+
+BLUETOOTH_SIG_COMPANIES = {}
+GAP_APPEARANCE = {}
+SERVICE_UUIDS = {}
+CHARACTERISTIC_UUIDS = {}
+
+async def fetch_bluetooth_database():
+    """Fetch and update the Bluetooth database from Nordic Semiconductor."""
+    global BLUETOOTH_SIG_COMPANIES, GAP_APPEARANCE, SERVICE_UUIDS, CHARACTERISTIC_UUIDS
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(BLUETOOTH_NUMBERS_DB + "decimal_ids.json") as response:
+                BLUETOOTH_SIG_COMPANIES = await response.json()
+            async with session.get(BLUETOOTH_NUMBERS_DB + "gap_appearance.json") as response:
+                GAP_APPEARANCE = await response.json()
+            async with session.get(BLUETOOTH_NUMBERS_DB + "service_uuids.json") as response:
+                SERVICE_UUIDS = await response.json()
+            async with session.get(BLUETOOTH_NUMBERS_DB + "characteristic_uuids.json") as response:
+                CHARACTERISTIC_UUIDS = await response.json()
+            _LOGGER.info("✅ Successfully updated Bluetooth database from Nordic Semiconductor")
+        except Exception as e:
+            _LOGGER.error(f"🔥 Error fetching Bluetooth database: {e}")
+
 
 def decode_device_name(name_bytes):
     """Attempt to decode a device name from multiple encodings."""
@@ -42,6 +55,7 @@ def decode_device_name(name_bytes):
 
     return f"[ENCODED] {base64.b64encode(name_bytes).decode()}"
 
+
 def extract_friendly_name(service_info):
     """Extract a friendly name from available advertisement or manufacturer data."""
     if hasattr(service_info, "advertisement") and service_info.advertisement:
@@ -50,11 +64,34 @@ def extract_friendly_name(service_info):
     
     manufacturer_data = service_info.manufacturer_data or {}
     for key, value in manufacturer_data.items():
-        if len(value) > 2:  # Ensure we have enough data to slice
+        if len(value) > 2:
             possible_name = decode_device_name(value[2:])
             if possible_name:
                 return possible_name
     return None
+
+
+def get_device_type(appearance_id):
+    """Retrieve device type from GAP Appearance database."""
+    return GAP_APPEARANCE.get(str(appearance_id), "Unknown Type")
+
+
+def analyze_manufacturer_data(manufacturer_data):
+    """Analyze manufacturer data to extract possible device information."""
+    for key, value in manufacturer_data.items():
+        _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value.hex()}")
+
+        if len(value) >= 4:  # Ensure there are enough bytes
+            identifier = int.from_bytes(value[2:4], "big")  # Extract bytes 3 & 4
+            _LOGGER.debug(f"🔍 Possible Device Identifier: {identifier}")
+
+            # Match with known database (GAP appearance or manufacturer ID)
+            matched_device = GAP_APPEARANCE.get(str(identifier), f"Unknown (ID {identifier})")
+            _LOGGER.info(f"🆔 Matched Device: {matched_device}")
+
+            return matched_device
+    return "Unknown"
+
 
 def serialize_service_info(service_info):
     """Convert BluetoothServiceInfoBleak to a JSON-serializable format."""
@@ -74,92 +111,53 @@ def serialize_service_info(service_info):
         _LOGGER.error(f"🔥 Error serializing service info: {e}")
         return {}
 
+
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
-    
-    # Log full raw service info attributes
     _LOGGER.debug(f"📡 Raw Service Info Attributes: {dir(service_info)}")
-
     try:
         _LOGGER.debug(f"📡 Full Service Info as_dict(): {json.dumps(serialize_service_info(service_info), indent=2)}")
     except Exception as e:
         _LOGGER.error(f"🔥 Error logging service info: {e}")
 
-    # Extract Manufacturer Data
     manufacturer_data = service_info.manufacturer_data or {}
-
-    # Log raw manufacturer data before any modification
-    _LOGGER.debug(f"🔍 Raw Manufacturer Data (Before Processing): {manufacturer_data}")
-
+    _LOGGER.debug(f"🔍 Raw Manufacturer Data: {manufacturer_data}")
+    
     for key, value in manufacturer_data.items():
         _LOGGER.debug(f"🔍 Manufacturer Data Key: {key}, Type: {type(value)}, Value (repr): {repr(value)}")
-        _LOGGER.debug(f"🔍 Manufacturer Data Hex [{key}]: {value.hex() if isinstance(value, bytes) else 'Not Bytes'}")
+        _LOGGER.debug(f"🔍 Manufacturer Data Hex [{key}]: {value.hex()}")
 
-    # Extract device name from raw manufacturer data
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
     
-    manufacturer_id = next(iter(manufacturer_data), None)
+    manufacturer_id = str(next(iter(manufacturer_data), None))
     manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
 
+    # Try to analyze manufacturer data for device type
+    device_type = analyze_manufacturer_data(manufacturer_data)
+    
     if device_name == service_info.address:
         device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
-
-    # Log the discovered device details
+    
     _LOGGER.info(f"🆔 Discovered Device: {json.dumps(serialize_service_info(service_info), indent=2)}")
-
+    
     return {
         "name": device_name,
         "manufacturer": manufacturer,
+        "device_type": device_type,
         "mac_address": service_info.address,
         "rssi": service_info.rssi,
         "service_uuids": service_info.service_uuids,
     }
 
 
-async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
-    """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
-    _LOGGER.debug(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
-    discovered_devices = []
-
-    for service_info in async_discovered_service_info(hass):
-        _LOGGER.debug(f"📡 Service Info: {json.dumps(serialize_service_info(service_info), indent=2)}")
-        discovered_devices.append(_format_device(service_info))
-
-    if discovered_devices:
-        _LOGGER.info(f"✅ Found {len(discovered_devices)} devices before scanning: {json.dumps(discovered_devices, indent=2)}")
-        return discovered_devices
-
-    return discovered_devices
-
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the cache-clearing service in Home Assistant."""
+    await fetch_bluetooth_database()
     async def handle_clear_cache(call: ServiceCall) -> None:
         """Service call to clear the manufacturer cache."""
         _LOGGER.info("🗑️ Clearing manufacturer cache...")
     hass.services.async_register("bluetooth_speaker_control", "clear_cache", handle_clear_cache)
     return True
-
-
-
-def analyze_manufacturer_data(manufacturer_data):
-    """Analyze manufacturer data to extract possible device information."""
-    for key, value in manufacturer_data.items():
-        _LOGGER.debug(f"🔍 Raw Manufacturer Data [{key}]: {value.hex()}")
-        
-        if len(value) >= 4:  # Ensure there are enough bytes
-            identifier = int.from_bytes(value[2:4], "big")  # Extract 3rd and 4th bytes
-            _LOGGER.debug(f"🔍 Possible Device Identifier: {identifier}")
-
-            # Compare with known database (gap_appearance.json or decimal_ids.js)
-            matched_device = GAP_APPEARANCE_DICT.get(identifier, f"Unknown (ID {identifier})")
-            _LOGGER.info(f"🆔 Matched Device: {matched_device}")
-
-            return matched_device
-    return "Unknown"
-
-
-
-
 
 
 
