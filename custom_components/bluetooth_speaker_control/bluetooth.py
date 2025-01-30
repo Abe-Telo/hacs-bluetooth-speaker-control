@@ -83,7 +83,7 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
                     service_info.connectable,  # Is Connectable
                     service_info.source  # Adapter source ID
                 )
-                _LOGGER.debug(f"🔍 from_scan() Output: {scan_result}")
+                _LOGGER.debug(f"🔍 from_scan() Output: {json.dumps(serialize_service_info(scan_result), indent=2)}")
         except Exception as e:
             _LOGGER.error(f"⚠️ Error calling from_advertisement/from_scan: {e}")
 
