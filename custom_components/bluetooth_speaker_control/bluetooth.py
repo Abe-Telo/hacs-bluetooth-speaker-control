@@ -1,14 +1,10 @@
 import logging
 import asyncio
-import requests
 import json
-import os
-import codecs
 import base64
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.helpers.entity_component import async_update_entity
 from homeassistant.components.bluetooth import (
     async_register_callback,
     async_discovered_service_info,
@@ -17,8 +13,6 @@ from homeassistant.components.bluetooth import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-CACHE_FILE = "manufacturer_cache.json"
 
 BLUETOOTH_SIG_COMPANIES = {
     6: "Microsoft",
@@ -32,8 +26,6 @@ BLUETOOTH_SIG_COMPANIES = {
     3052: "Fitbit, Inc.",
     6171: "Meta Platforms, Inc.",
 }
-
-MANUFACTURER_CACHE = {}
 
 def decode_device_name(name_bytes):
     """Attempt to decode a device name from multiple encodings."""
@@ -61,9 +53,23 @@ def extract_friendly_name(service_info):
                 return possible_name
     return None
 
+def serialize_service_info(service_info):
+    """Convert BluetoothServiceInfoBleak to a JSON-serializable format."""
+    return {
+        "name": service_info.name,
+        "address": service_info.address,
+        "rssi": service_info.rssi,
+        "manufacturer_data": {key: base64.b64encode(value).decode() for key, value in service_info.manufacturer_data.items()},
+        "service_data": {key: base64.b64encode(value).decode() for key, value in service_info.service_data.items()},
+        "service_uuids": service_info.service_uuids,
+        "source": service_info.source,
+        "connectable": service_info.connectable,
+        "tx_power": service_info.tx_power,
+    }
+
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
-    _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
+    _LOGGER.debug(f"📡 Full Service Info as_dict(): {json.dumps(serialize_service_info(service_info), indent=2)}")
     
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
     
@@ -74,7 +80,7 @@ def _format_device(service_info):
     if device_name == service_info.address:
         device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
     
-    _LOGGER.info(f"🆔 Discovered Device: {json.dumps(service_info.as_dict(), indent=2)}")
+    _LOGGER.info(f"🆔 Discovered Device: {json.dumps(serialize_service_info(service_info), indent=2)}")
     
     return {
         "name": device_name,
@@ -84,52 +90,18 @@ def _format_device(service_info):
         "service_uuids": service_info.service_uuids,
     }
 
-async def scan_bluetooth_devices(hass):
-    """Run both Active and Passive scans and merge results."""
-    _LOGGER.debug("🔄 Running Active Scan...")
-    active_results = await discover_bluetooth_devices(hass, timeout=10, passive_scanning=False)
-
-    _LOGGER.debug("🔄 Running Passive Scan...")
-    passive_results = await discover_bluetooth_devices(hass, timeout=10, passive_scanning=True)
-
-    all_results = {device["mac_address"]: device for device in active_results + passive_results}
-    _LOGGER.info(f"✅ Final Merged Bluetooth Devices: {json.dumps(list(all_results.values()), indent=2)}")
-
-    return list(all_results.values())
-
 async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
     """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
     _LOGGER.debug(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
     discovered_devices = []
 
     for service_info in async_discovered_service_info(hass):
-        _LOGGER.debug(f"📡 Service Info: {json.dumps(service_info.as_dict(), indent=2)}")
+        _LOGGER.debug(f"📡 Service Info: {json.dumps(serialize_service_info(service_info), indent=2)}")
         discovered_devices.append(_format_device(service_info))
 
     if discovered_devices:
         _LOGGER.info(f"✅ Found {len(discovered_devices)} devices before scanning: {json.dumps(discovered_devices, indent=2)}")
         return discovered_devices
-
-    def device_found(service_info, change: BluetoothChange):
-        """Callback when a device is found in real-time."""
-        device = _format_device(service_info)
-        if device not in discovered_devices:
-            discovered_devices.append(device)
-            _LOGGER.debug(f"📡 Found Bluetooth device: {json.dumps(device, indent=2)}")
-
-    try:
-        _LOGGER.debug("📡 Registering Bluetooth scan callback...")
-        scan_mode = BluetoothScanningMode.PASSIVE if passive_scanning else BluetoothScanningMode.ACTIVE
-        stop_scan = async_register_callback(hass, device_found, match_dict={}, mode=scan_mode)
-        _LOGGER.debug(f"⏳ Waiting {timeout} seconds for scan results...")
-        await asyncio.sleep(timeout)
-        _LOGGER.debug("🛑 Stopping Bluetooth scan...")
-        hass.loop.call_soon_threadsafe(stop_scan)
-    except Exception as e:
-        _LOGGER.error(f"🔥 Error during Bluetooth scan: {e}")
-
-    if not discovered_devices:
-        _LOGGER.warning("⚠️ No Bluetooth devices found.")
 
     return discovered_devices
 
