@@ -31,10 +31,10 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
     for service_info in async_discovered_service_info(hass):
         _LOGGER.debug(f"📡 Service Info: {json.dumps(serialize_service_info(service_info), indent=2)}")
 
-        _LOGGER.debug(f"🔍 from_advertisement(): {service_info.from_advertisement()}")
+        _LOGGER.debug(f"🔍 from_advertisement(): {service_info.from_advertisement}")
         _LOGGER.debug(f"🔍 device: {service_info.device}")
         _LOGGER.debug(f"🔍 advertisement: {service_info.advertisement}")
-        _LOGGER.debug(f"🔍 from_device_and_advertisement_data(): {service_info.from_device_and_advertisement_data()}")
+        _LOGGER.debug(f"🔍 from_device_and_advertisement_data(): {service_info.from_device_and_advertisement_data}")
         _LOGGER.debug(f"🔍 from scan: {service_info.from_scan}")
         _LOGGER.debug(f"🔍 manufacturer: {service_info.manufacturer}")
         _LOGGER.debug(f"🔍 name: {service_info.name}") 
@@ -49,6 +49,25 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
         _LOGGER.debug(f"🔍 rssi: {service_info.rssi}")  
         _LOGGER.debug(f"🔍 time: {service_info.time}")  
         _LOGGER.debug(f"🔍 tx_power: {service_info.tx_power}") 
+
+    # from_advertisement: from_advertisement(cls, address: str, advertisement_data, source: str)
+    #Expected Arguments:
+    #address (str) – The MAC address of the device.
+    #advertisement_data (AdvertisementData) – The advertisement data object received from the Bluetooth scan.
+    #source (str) – The source adapter ID (e.g., "hci0" or the actual Bluetooth adapter's identifier).
+        try:
+            if callable(service_info.from_advertisement):
+                adv_result = service_info.from_advertisement(service_info.address, service_info.advertisement)
+                _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
+
+            if callable(service_info.from_scan):
+                scan_result = service_info.from_scan(service_info.device, service_info.advertisement)
+                _LOGGER.debug(f"🔍 from_scan() Output: {scan_result}")
+        except Exception as e:
+            _LOGGER.error(f"⚠️ Error calling from_advertisement/from_scan: {e}")
+
+        discovered_devices.append(_format_device(service_info))
+
 
         # **Extract details from advertisement**
         if service_info.advertisement:
