@@ -36,22 +36,30 @@ BLUETOOTH_SIG_COMPANIES = {
 MANUFACTURER_CACHE = {}
 
 def decode_device_name(name_bytes):
-    """Attempt to decode a device name from multiple encodings."""
+    """Attempt to decode a device name using multiple encodings."""
+    if not name_bytes:
+        return None
+    
     for encoding in ("utf-8", "utf-16", "latin-1"):
         try:
             decoded = name_bytes.decode(encoding).strip()
-            if all(32 <= ord(c) < 127 for c in decoded):  # Ensure printable characters
+            if all(32 <= ord(c) < 127 for c in decoded):  # Ensure printable ASCII characters
                 return decoded
         except UnicodeDecodeError:
             continue
-    return base64.b64encode(name_bytes).decode()
 
+    # If all decoding fails, return None instead of Base64
+    return None
+ 
 def extract_friendly_name(service_info):
     """Extract a friendly name from available advertisement or manufacturer data."""
+    # First, check advertisement local_name
     if service_info.advertisement and hasattr(service_info.advertisement, "local_name"):
-        if service_info.advertisement.local_name:
-            return service_info.advertisement.local_name.strip()
-    
+        local_name = service_info.advertisement.local_name
+        if local_name:
+            return local_name.strip()
+
+    # If local_name is missing, check manufacturer_data
     manufacturer_data = service_info.manufacturer_data
     if manufacturer_data:
         for key, value in manufacturer_data.items():
@@ -59,7 +67,9 @@ def extract_friendly_name(service_info):
             possible_name = decode_device_name(value[2:])  # Skip first two bytes
             if possible_name:
                 return possible_name
-    return None
+
+    return None  # Ensure None is returned if no valid name is found
+
 
 def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
