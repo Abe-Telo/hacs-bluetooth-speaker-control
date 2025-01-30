@@ -50,23 +50,6 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
         _LOGGER.debug(f"🔍 time: {service_info.time}")  
         _LOGGER.debug(f"🔍 tx_power: {service_info.tx_power}") 
 
-    # from_advertisement: from_advertisement(cls, address: str, advertisement_data, source: str)
-    #Expected Arguments:
-    #address (str) – The MAC address of the device.
-    #advertisement_data (AdvertisementData) – The advertisement data object received from the Bluetooth scan.
-    #source (str) – The source adapter ID (e.g., "hci0" or the actual Bluetooth adapter's identifier).
-        try:
-            if callable(service_info.from_advertisement):
-                adv_result = service_info.from_advertisement(service_info.address, service_info.advertisement)
-                _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
-
-            if callable(service_info.from_scan):
-                scan_result = service_info.from_scan(service_info.device, service_info.advertisement)
-                _LOGGER.debug(f"🔍 from_scan() Output: {scan_result}")
-        except Exception as e:
-            _LOGGER.error(f"⚠️ Error calling from_advertisement/from_scan: {e}")
-
-        discovered_devices.append(_format_device(service_info))
 
 
         # **Extract details from advertisement**
@@ -79,6 +62,23 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
 
             if hasattr(adv_data, "manufacturer_data") and adv_data.manufacturer_data:
                 _LOGGER.debug(f"🏭 Manufacturer Data from Advertisement: {adv_data.manufacturer_data}")
+
+        # from_advertisement: from_advertisement(cls, address: str, advertisement_data, source: str)
+        #Expected Arguments:
+        #address (str) – The MAC address of the device.
+        #advertisement_data (AdvertisementData) – The advertisement data object received from the Bluetooth scan.
+        #source (str) – The source adapter ID (e.g., "hci0" or the actual Bluetooth adapter's identifier).
+        try:
+            if callable(service_info.from_advertisement):
+                adv_result = service_info.from_advertisement(service_info.address, service_info.advertisement)
+                _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
+
+            if callable(service_info.from_scan):
+                scan_result = service_info.from_scan(service_info.device, service_info.advertisement)
+                _LOGGER.debug(f"🔍 from_scan() Output: {scan_result}")
+        except Exception as e:
+            _LOGGER.error(f"⚠️ Error calling from_advertisement/from_scan: {e}")
+ 
 
         # **Call methods to extract information**
         try:
