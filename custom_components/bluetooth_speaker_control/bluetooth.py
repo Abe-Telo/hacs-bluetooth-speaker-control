@@ -36,20 +36,25 @@ BLUETOOTH_SIG_COMPANIES = {
 MANUFACTURER_CACHE = {}
 
 def decode_device_name(name_bytes):
-    """Attempt to decode a device name using multiple encodings."""
+    """Attempt to decode a device name from multiple encodings."""
     if not name_bytes:
         return None
-    
+
     for encoding in ("utf-8", "utf-16", "latin-1"):
         try:
             decoded = name_bytes.decode(encoding).strip()
-            if all(32 <= ord(c) < 127 for c in decoded):  # Ensure printable ASCII characters
+            if all(32 <= ord(c) < 127 for c in decoded):  # Ensure printable characters
                 return decoded
         except UnicodeDecodeError:
             continue
 
+    # If decoding fails, check for ASCII-only bytes (avoid Base64 when unnecessary)
+    if all(32 <= byte < 127 for byte in name_bytes):
+        return name_bytes.decode("ascii")
+
     # If all decoding fails, return None instead of Base64
     return None
+
  
 def extract_friendly_name(service_info):
     """Extract a friendly name from available advertisement or manufacturer data."""
@@ -75,8 +80,10 @@ def _format_device(service_info):
     """Extract relevant details from the discovered service info."""
     _LOGGER.debug(f"📡 Full Service Info as_dict(): {service_info.as_dict()}")
     
-    device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
-    
+    device_name = extract_friendly_name(service_info)
+    if not device_name or device_name == service_info.address:
+        device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
+
     manufacturer_data = service_info.manufacturer_data
     manufacturer_id = next(iter(manufacturer_data), None)
     manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
