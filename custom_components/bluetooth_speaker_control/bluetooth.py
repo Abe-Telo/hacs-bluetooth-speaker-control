@@ -149,23 +149,31 @@ def _format_device(service_info):
     manufacturer_data = service_info.manufacturer_data or {}
     _LOGGER.debug(f"🔍 Raw Manufacturer Data: {manufacturer_data}")
 
-    extracted_info = parse_manufacturer_data(manufacturer_data)
+    manufacturer_id = None
+    device_type = "Unknown Type"
+
+    for key, value in manufacturer_data.items():
+        _LOGGER.debug(f"🔍 Manufacturer Data Key: {key}, Type: {type(value)}, Value (repr): {repr(value)}")
+        _LOGGER.debug(f"🔍 Manufacturer Data Hex [{key}]: {value.hex() if isinstance(value, bytes) else 'Not Bytes'}")
+        
+        if len(value) >= 4:  # Ensure there are enough bytes to extract identifier
+            manufacturer_id = int.from_bytes(value[2:4], "big")  # Extract the 3rd & 4th bytes
+            _LOGGER.debug(f"🔍 Extracted Manufacturer ID: {manufacturer_id}")
+
+    manufacturer_id_str = str(manufacturer_id) if manufacturer_id else "Unknown"
+    manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id_str, f"Unknown (ID {manufacturer_id_str})")
+    
+    if manufacturer_id:
+        device_type = GAP_APPEARANCE.get(manufacturer_id_str, "Unknown Type")
+        _LOGGER.debug(f"🆔 Matched Device Type: {device_type}")
 
     device_name = extract_friendly_name(service_info) or service_info.name or service_info.address
-    manufacturer_id = next(iter(manufacturer_data), None)
-
-    if manufacturer_id is not None and manufacturer_id in extracted_info:
-        manufacturer = extracted_info[manufacturer_id]["manufacturer"]
-        device_type = extracted_info[manufacturer_id]["device_type"]
-    else:
-        manufacturer = f"Unknown (ID {manufacturer_id})"
-        device_type = "Unknown Type"
 
     if device_name == service_info.address:
         device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
-    
+
     _LOGGER.info(f"🆔 Discovered Device: {json.dumps(serialize_service_info(service_info), indent=2)}")
-    
+
     return {
         "name": device_name,
         "manufacturer": manufacturer,
@@ -174,6 +182,7 @@ def _format_device(service_info):
         "rssi": service_info.rssi,
         "service_uuids": service_info.service_uuids,
     }
+
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
