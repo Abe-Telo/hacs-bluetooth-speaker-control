@@ -71,6 +71,11 @@ def extract_friendly_name(service_info):
     return None
 
 
+def get_device_type(appearance_id):
+    """Retrieve device type from GAP Appearance database."""
+    return GAP_APPEARANCE.get(str(appearance_id), "Unknown Type")
+
+
 def serialize_service_info(service_info):
     """Convert BluetoothServiceInfoBleak to a JSON-serializable format."""
     try:
@@ -108,6 +113,7 @@ def _format_device(service_info):
     
     manufacturer_id = str(next(iter(manufacturer_data), None))
     manufacturer = BLUETOOTH_SIG_COMPANIES.get(manufacturer_id, f"Unknown (ID {manufacturer_id})")
+    device_type = get_device_type(manufacturer_id)
     
     if device_name == service_info.address:
         device_name = f"{manufacturer} Device ({service_info.address[-5:]})"
@@ -117,26 +123,11 @@ def _format_device(service_info):
     return {
         "name": device_name,
         "manufacturer": manufacturer,
+        "device_type": device_type,
         "mac_address": service_info.address,
         "rssi": service_info.rssi,
         "service_uuids": service_info.service_uuids,
     }
-
-
-async def discover_bluetooth_devices(hass, timeout=7, passive_scanning=True):
-    """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
-    _LOGGER.debug(f"🔍 Discovering Bluetooth devices (Passive: {passive_scanning})...")
-    discovered_devices = []
-
-    for service_info in async_discovered_service_info(hass):
-        _LOGGER.debug(f"📡 Service Info: {json.dumps(serialize_service_info(service_info), indent=2)}")
-        discovered_devices.append(_format_device(service_info))
-
-    if discovered_devices:
-        _LOGGER.info(f"✅ Found {len(discovered_devices)} devices before scanning: {json.dumps(discovered_devices, indent=2)}")
-        return discovered_devices
-
-    return discovered_devices
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
