@@ -21,6 +21,8 @@ BLUETOOTH_SIG_COMPANIES = {}
 GAP_APPEARANCE = {}
 SERVICE_UUIDS = {}
 CHARACTERISTIC_UUIDS = {}
+#from_scan(cls, device: BLEDevice, advertisement_data: AdvertisementData, rssi: int, connectable: bool, source: str)
+#from_advertisement(cls, address: str, advertisement_data: AdvertisementData, source: str)
 
 async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
     """Discover Bluetooth devices using Home Assistant's built-in discovery API."""
@@ -67,36 +69,41 @@ async def discover_bluetooth_devices(hass, timeout=30, passive_scanning=True):
         # 2. advertisement_data (AdvertisementData) – The advertisement data object received from the Bluetooth scan.
         # 3. source (str) – The source adapter ID (e.g., "hci0" or the actual Bluetooth adapter's identifier).
  
+ 
+            from bleak.backends.device import BLEDevice
+
+            # Ensure correct parameters for `from_advertisement`
             if callable(service_info.from_advertisement):
                 adv_result = service_info.from_advertisement(
                     service_info.address,  # Address (MAC)
                     service_info.advertisement,  # AdvertisementData object
-                    service_info.source  # Adapter source ID (this was missing)
+                    service_info.source  # Adapter source ID (Fix: This was missing)
                 )
                 _LOGGER.debug(f"📡 from_advertisement() Output: {adv_result}")
 
+            # Ensure correct parameters for `from_scan`
             if callable(service_info.from_scan):
-                from bleak import BLEDevice
+                # Create a proper BLEDevice instance
                 ble_device = BLEDevice(
-                    service_info.address,  # Address (MAC)
-                    service_info.name,  # Name
+                    address=service_info.address,
+                    name=service_info.name,  # Ensure this is a valid name
                     rssi=service_info.rssi,
                     details={},  # Additional details if needed
-                    advertisement_data=service_info.advertisement
+                    manufacturer_data=service_info.manufacturer_data  # Pass manufacturer data if needed
                 )
 
                 scan_result = service_info.from_scan(
-                    ble_device,  # BLEDevice object
-                    service_info.advertisement,
-                    service_info.rssi,
-                    service_info.connectable,
-                    service_info.source
+                    ble_device,  # Corrected: Now a BLEDevice object
+                    service_info.advertisement,  # AdvertisementData object
+                    service_info.rssi,  # RSSI value
+                    service_info.connectable,  # Is Connectable
+                    service_info.source  # Adapter source ID
                 )
                 _LOGGER.debug(f"🔍 from_scan() Output: {json.dumps(serialize_service_info(scan_result), indent=2)}")
-                
+
         except Exception as e:
             _LOGGER.error(f"⚠️ Error calling from_advertisement/from_scan: {e}")
-
+ 
         discovered_devices.append(_format_device(service_info))
 
     if discovered_devices:
